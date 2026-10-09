@@ -15,7 +15,8 @@ let package = Package(
         .library(name: "AgentCodexExec", targets: ["AgentCodexExec"]),
         .library(name: "AgentClaudeHeadless", targets: ["AgentClaudeHeadless"]),
         .library(name: "AgentGeminiHeadless", targets: ["AgentGeminiHeadless"]),
-        .library(name: "AgentACPHeadless", targets: ["AgentACPHeadless"])
+        .library(name: "AgentACPHeadless", targets: ["AgentACPHeadless"]),
+        .library(name: "AgentNativeProcessTransport", targets: ["AgentNativeProcessTransport"])
     ],
     dependencies: [
         .package(url: "https://github.com/ajmcclary/ProcessKit.git", .upToNextMinor(from: "0.1.0-beta.5")),
@@ -64,6 +65,8 @@ let package = Package(
         .testTarget(name: "AgentGeminiHeadlessTests", dependencies: ["AgentGeminiHeadless", "AgentHeadlessContracts", "AgentCLIExecution", .product(name: "AIClientKit", package: "AIClientKit")], swiftSettings: settings),
         .target(name: "AgentACPHeadless", dependencies: ["AgentHeadlessContracts", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .testTarget(name: "AgentACPHeadlessTests", dependencies: ["AgentACPHeadless", "AgentHeadlessContracts", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
+        .target(name: "AgentNativeProcessTransport", dependencies: [.product(name: "ProcessKit", package: "ProcessKit")], swiftSettings: settings),
+        .testTarget(name: "AgentNativeProcessTransportTests", dependencies: ["AgentNativeProcessTransport", .product(name: "ProcessKit", package: "ProcessKit")], swiftSettings: settings),
         .target(name: "AgentExecutionKit", dependencies: ["AgentProcessSupport"], swiftSettings: settings),
         .testTarget(name: "AgentProcessSupportTests", dependencies: ["AgentProcessSupport"], swiftSettings: settings)
     ]

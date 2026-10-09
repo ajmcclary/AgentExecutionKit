@@ -136,3 +136,21 @@ replacement. Replacement/disposal await retired producers and controller cleanup
 concurrent disposal shares shutdown. The legacy app lock/asserted-Sendable
 lifecycle owner is no longer needed. Native ACP transport/session controllers and
 prompt-only provider orchestration remain subsequent extraction boundaries.
+
+`AgentNativeProcessTransport` owns child spawn, stdin writes, stdout/stderr reader
+lifetimes, the process waiter, generation metadata, and physical teardown. It is
+an actor-confined synchronous component: tasks capture only explicit callbacks
+and values, never its mutable state. Launch inputs, preflight, waiting, direct
+reaping, and diagnostic labels are supplied by the host. Protocol framing,
+requests, admission/digest checks, executable/environment resolution, session
+policy, MCP registration, and provider identity remain outside the transport.
+
+Termination releases transport state before awaiting cleanup. Its sealed Sendable
+lease shares one cleanup task across repeated/concurrent callers. An installed
+waiter exclusively owns reaping; a setup failure before waiter installation uses
+the injected direct reap. Natural-exit acknowledgement releases already-reaped
+state, and stale generations cannot clear/write/invalidate a replacement. Dropped
+owners and unused leases also initiate cleanup through the same ownership path.
+The product depends only on ProcessKit; it adds no protocol/UI/storage dependencies
+to the process primitives. Build it independently with
+`swift build --target AgentNativeProcessTransport`.
