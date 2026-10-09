@@ -66,3 +66,22 @@ launches a child. The former independent reader/watchdog/reaper paths are remove
 Buffered execution retains full output; streaming diagnostic tails retain their
 configured limits and input sampling remains opt-in. This product links only
 ProcessKit and ProcessStreamFraming; framing stays outside the process primitives.
+
+`AgentHeadlessContracts` exposes the SDK-neutral headless message and provider
+interface. `AgentCodexExec` owns the complete Codex exec stream lifecycle,
+line framing, current/legacy event parsing, invocation correlation, stderr
+filtering, bounded error capture, failure classification, one broken-server retry,
+and completion/failure delivery. It consumes the injectable CLI execution surface.
+Hosts provide policy validation, per-attempt launch contexts/executors, MCP event
+observation and cleanup, broken-server state, model-unavailable guidance, and
+logging. Executable/auth/MCP inventories and application settings remain explicit
+host policy; this product reads no bundle, defaults suite, or process environment.
+
+Every attempt has its own parser and execution context. Replacement and disposal
+retire prior tasks before starting a replacement; stale observation callbacks
+cannot enter a later stream. Cleanup runs after success, failure, and cancellation.
+A logical run emits one message_stop, including clean exits without a provider
+completion frame. Model-unavailability never substitutes a model or retries.
+Build the products with `swift build --target AgentHeadlessContracts` and
+`swift build --target AgentCodexExec`; all public values are Sendable and contain
+no application or external SDK type.
