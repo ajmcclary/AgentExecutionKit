@@ -9,6 +9,12 @@ public struct ClaudeNativeTranslationBatch: Sendable {
 	public let results: [AIStreamResult]
 	public let diagnostics: [ClaudeRuntimeDiagnostic]
 	public let normalizedEvents: [ClaudeRuntimeEvent]
+	public init(envelope: ClaudeEventEnvelope, results: [AIStreamResult], diagnostics: [ClaudeRuntimeDiagnostic], normalizedEvents: [ClaudeRuntimeEvent]) {
+		self.envelope = envelope
+		self.results = results
+		self.diagnostics = diagnostics
+		self.normalizedEvents = normalizedEvents
+	}
 }
 
 /// Tool inventory, status ownership, and diagnostics are host policy. The
