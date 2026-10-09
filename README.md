@@ -85,3 +85,22 @@ completion frame. Model-unavailability never substitutes a model or retries.
 Build the products with `swift build --target AgentHeadlessContracts` and
 `swift build --target AgentCodexExec`; all public values are Sendable and contain
 no application or external SDK type.
+
+`AgentClaudeHeadless` owns the Claude headless CLI dialect, current/legacy event
+projection, final-content authority, usage/session identities, bounded diagnostic
+capture, failure mapping, and stream execution/cancellation/cleanup. It consumes
+`AgentCLIExecution` and `AgentHeadlessContracts`; it adds no dependency on native
+session controllers, HTTP, storage, or UI. Public parser values are core AI stream
+results. The host supplies resolved stdin/arguments/environment removals, one
+executor per run, MCP observation/cleanup, credit-balance guidance, and diagnostics.
+Reasoning extraction is an explicit input. Provider completion closes the process
+promptly; duplicate/trailing completions do not escape, and a successful process
+exit without a result produces one completion. Replacement/disposal await retired
+producers; cancelled preparation still cleans any returned context before launch.
+
+`AgentClaudeProtocol.ClaudePromptDelivery` also owns the existing XML instruction
+wrapper and whitespace rules used by both headless and native hosts. Prompt mode,
+credentials, permission flags, native-tool restrictions, CLI model arguments, and
+MCP inventory remain host choices. Build the headless product independently with
+`swift build --target AgentClaudeHeadless`. Native Claude session ownership and
+Gemini/ACP execution remain subsequent extraction slices.
