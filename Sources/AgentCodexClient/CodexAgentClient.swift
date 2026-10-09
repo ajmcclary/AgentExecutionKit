@@ -110,7 +110,7 @@ public actor CodexAgentClient {
 			)
 		}
 	}
-	
+
 	/// JSON-RPC error code Codex app-server returns when overloaded; retried with backoff.
 	public static let overloadErrorCode = CodexBackoffPolicy.overloadErrorCode
 
@@ -202,7 +202,7 @@ public actor CodexAgentClient {
 		)
 		self.expectedAgentPIDRegistrar = expectedAgentPIDRegistrar
 	}
-	
+
 	public func updateConfig(_ config: Config) {
 		self.config = config
 	}
@@ -300,7 +300,7 @@ public actor CodexAgentClient {
 	public func currentExperimentalAdmission() -> CodexExperimentalAdmission? {
 		experimentalAdmission
 	}
-	
+
 	public func subscribeNotifications() -> AsyncStream<Notification> {
 		AsyncStream { continuation in
 			let id = UUID()
@@ -310,7 +310,7 @@ public actor CodexAgentClient {
 			}
 		}
 	}
-	
+
 	public func subscribeServerRequests() -> AsyncStream<ServerRequest> {
 		AsyncStream { continuation in
 			let id = UUID()
@@ -320,7 +320,7 @@ public actor CodexAgentClient {
 			}
 		}
 	}
-	
+
 	public func startIfNeeded() async throws {
 		if let existingStartupTask = startupTask?.task {
 			return try await existingStartupTask.value
@@ -357,7 +357,7 @@ public actor CodexAgentClient {
 			throw error
 		}
 	}
-	
+
 	public func stop() async {
 		startupTask?.task.cancel()
 		startupTask = nil
@@ -509,7 +509,7 @@ public actor CodexAgentClient {
 			logger: logger
 		)
 	}
-	
+
 	/// Delay before retrying a failed request, or nil if it should not be retried.
 	/// Retries only overloaded (`-32001`) responses while attempts remain.
 	public static func retryDelay(for error: Error, attempt: Int, policy: CodexBackoffPolicy) -> TimeInterval? {
@@ -632,7 +632,7 @@ public actor CodexAgentClient {
 			payload
 		}
 	}
-	
+
 	public func requestJSON(
 		method: String,
 		params: [String: CodexJSONValue]?,
@@ -686,7 +686,7 @@ public actor CodexAgentClient {
 		]
 		try sendJSONLine(payload, method: nil)
 	}
-	
+
 	public func notify(method: String, params: [String: Any]?) throws {
 		guard transport.hasProcess else { throw ClientError.processNotRunning }
 		var payload: [String: Any] = [
@@ -783,7 +783,7 @@ public actor CodexAgentClient {
 
 		return models
 	}
-	
+
 	/// Stable client capabilities, kept strictly separate from experimental
 	/// admission. Empty today; anything added here must be a STABLE
 	/// initialize capability (never `experimentalApi`).
@@ -900,7 +900,7 @@ public actor CodexAgentClient {
 			if snapshot == config { return launch }
 		}
 	}
-	
+
 	private func handleStdoutChunk(_ data: Data, generation: UInt64) async {
 		guard generation == transport.generation, !transport.isTerminated else { return }
 		handleDecoderEvents(stdoutDecoder.ingest(data))
@@ -1004,14 +1004,14 @@ public actor CodexAgentClient {
 			continuation.yield(Notification(method: method, params: params))
 		}
 	}
-	
+
 	private func broadcastServerRequest(id: CodexAppServerRequestID, method: String, params: [String: CodexJSONValue]) {
 		let request = ServerRequest(id: id, method: method, params: params)
 		for continuation in serverRequestContinuations.values {
 			continuation.yield(request)
 		}
 	}
-	
+
 	private func codexJSONDictionary(from value: [String: Any]) -> [String: CodexJSONValue] {
 		var output: [String: CodexJSONValue] = [:]
 		for (key, value) in value {
@@ -1021,7 +1021,7 @@ public actor CodexAgentClient {
 		}
 		return output
 	}
-	
+
 	/// Writes a single JSON-RPC line to stdin as an atomic frame (payload + newline).
 	///
 	/// Combining payload and newline into a single write prevents pipe interleaving
@@ -1124,7 +1124,7 @@ public actor CodexAgentClient {
 	private func removeNotificationContinuation(_ id: UUID) {
 		notificationContinuations.removeValue(forKey: id)
 	}
-	
+
 	private func removeServerRequestContinuation(_ id: UUID) {
 		serverRequestContinuations.removeValue(forKey: id)
 	}
