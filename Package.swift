@@ -9,7 +9,8 @@ let package = Package(
         .library(name: "AgentExecutionKit", targets: ["AgentExecutionKit"]),
         .library(name: "AgentProcessSupport", targets: ["AgentProcessSupport"]),
         .library(name: "AgentCodexClient", targets: ["AgentCodexClient"]),
-        .library(name: "AgentClaudeProtocol", targets: ["AgentClaudeProtocol"])
+        .library(name: "AgentClaudeProtocol", targets: ["AgentClaudeProtocol"]),
+        .library(name: "AgentCLIExecution", targets: ["AgentCLIExecution"])
     ],
     dependencies: [
         .package(url: "https://github.com/ajmcclary/ProcessKit.git", .upToNextMinor(from: "0.1.0-beta.5")),
@@ -44,6 +45,11 @@ let package = Package(
             .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit"),
             .product(name: "AIClientKit", package: "AIClientKit")
         ], swiftSettings: settings),
+        .target(name: "AgentCLIExecution", dependencies: [
+            .product(name: "ProcessKit", package: "ProcessKit"),
+            .product(name: "ProcessStreamFraming", package: "ProcessKit")
+        ], swiftSettings: settings),
+        .testTarget(name: "AgentCLIExecutionTests", dependencies: ["AgentCLIExecution", .product(name: "ProcessKit", package: "ProcessKit")], swiftSettings: settings),
         .target(name: "AgentExecutionKit", dependencies: ["AgentProcessSupport"], swiftSettings: settings),
         .testTarget(name: "AgentProcessSupportTests", dependencies: ["AgentProcessSupport"], swiftSettings: settings)
     ]

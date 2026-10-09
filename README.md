@@ -49,3 +49,20 @@ retains its existing disabled flag and projection-authority policy.
 
 Build this product independently with `swift build --target AgentClaudeProtocol`.
 Native Claude process/session ownership and ACP clients remain later slices.
+
+`AgentCLIExecution` owns buffered/streaming child execution, cancellable FIFO
+admission, stdin feeding, output/tail capture, cancellation, and cleanup. Hosts
+provide environment construction, command resolution/cache, directory expansion,
+termination policy, diagnostics, read preflight, and optional process-registration
+callbacks. Output-mode values, argument redaction, and launch-error messages keep
+RepoPrompt's characterized semantics. Configuration has explicit command,
+working-directory and search-path inputs; there is no ambient app lookup.
+
+Every child has one waiter and cleanup owner. Consumer cancellation, buffered-task
+cancellation and cancelAll cancel that waiter instead of racing separate reapers.
+ProcessKit readers deliver queued bytes before EOF; descendant-held pipes have a
+bounded drain. Permits are returned after cleanup, and queued cancellation never
+launches a child. The former independent reader/watchdog/reaper paths are removed.
+Buffered execution retains full output; streaming diagnostic tails retain their
+configured limits and input sampling remains opt-in. This product links only
+ProcessKit and ProcessStreamFraming; framing stays outside the process primitives.
