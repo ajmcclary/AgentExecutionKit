@@ -5,6 +5,13 @@ import AIClientKit
 import ClaudeRuntimeKit
 
 final class ClaudeNativeProtocolTests: XCTestCase {
+	func testOutOfRangeFloatingUsageDoesNotTrapOrDiscardSiblingText() {
+		var translator = ClaudeNativeEventTranslator()
+		let batch = translator.translate(Data(#"{"type":"assistant","message":{"usage":{"input_tokens":1e100,"output_tokens":1.75},"content":[{"type":"text","text":"survives"}]}}"#.utf8))
+		XCTAssertEqual(batch.results.last?.text, "survives")
+		XCTAssertEqual(batch.results.first?.completionTokens, 1)
+		XCTAssertEqual(batch.results.first?.promptTokens, 0)
+	}
 	func testTypedControlRequestRetainsLargeNumbersAndUnknownFieldsAcrossTasks() async throws {
 		let line = Data(#"{"type":"control_request","request_id":"r","request":{"subtype":"future","number":9007199254740993,"unknown":{"flag":true}}}"#.utf8)
 		let value = try XCTUnwrap(ClaudeNativeProtocolCodec.decodeLine(line))

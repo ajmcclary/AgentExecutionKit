@@ -1280,7 +1280,7 @@ public struct ClaudeNativeEventTranslator: Sendable {
 		case let int as Int:
 			return int
 		case let double as Double:
-			return Int(double)
+			return Int(exactly: double.rounded(.towardZero))
 		case let string as String:
 			return Int(string)
 		default:
