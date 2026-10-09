@@ -13,7 +13,9 @@ let package = Package(
         .library(name: "AgentCLIExecution", targets: ["AgentCLIExecution"]),
         .library(name: "AgentHeadlessContracts", targets: ["AgentHeadlessContracts"]),
         .library(name: "AgentCodexExec", targets: ["AgentCodexExec"]),
-        .library(name: "AgentClaudeHeadless", targets: ["AgentClaudeHeadless"])
+        .library(name: "AgentClaudeHeadless", targets: ["AgentClaudeHeadless"]),
+        .library(name: "AgentGeminiHeadless", targets: ["AgentGeminiHeadless"]),
+        .library(name: "AgentACPHeadless", targets: ["AgentACPHeadless"])
     ],
     dependencies: [
         .package(url: "https://github.com/ajmcclary/ProcessKit.git", .upToNextMinor(from: "0.1.0-beta.5")),
@@ -58,6 +60,10 @@ let package = Package(
         .testTarget(name: "AgentCodexExecTests", dependencies: ["AgentCodexExec", "AgentHeadlessContracts", "AgentCLIExecution", .product(name: "AIClientKit", package: "AIClientKit")], swiftSettings: settings),
         .target(name: "AgentClaudeHeadless", dependencies: ["AgentHeadlessContracts", "AgentCLIExecution", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "ProcessStreamFraming", package: "ProcessKit")], swiftSettings: settings),
         .testTarget(name: "AgentClaudeHeadlessTests", dependencies: ["AgentClaudeHeadless", "AgentHeadlessContracts", "AgentCLIExecution", "AgentClaudeProtocol", .product(name: "AIClientKit", package: "AIClientKit")], swiftSettings: settings),
+        .target(name: "AgentGeminiHeadless", dependencies: ["AgentHeadlessContracts", "AgentCLIExecution", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "ProcessStreamFraming", package: "ProcessKit")], swiftSettings: settings),
+        .testTarget(name: "AgentGeminiHeadlessTests", dependencies: ["AgentGeminiHeadless", "AgentHeadlessContracts", "AgentCLIExecution", .product(name: "AIClientKit", package: "AIClientKit")], swiftSettings: settings),
+        .target(name: "AgentACPHeadless", dependencies: ["AgentHeadlessContracts", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
+        .testTarget(name: "AgentACPHeadlessTests", dependencies: ["AgentACPHeadless", "AgentHeadlessContracts", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentExecutionKit", dependencies: ["AgentProcessSupport"], swiftSettings: settings),
         .testTarget(name: "AgentProcessSupportTests", dependencies: ["AgentProcessSupport"], swiftSettings: settings)
     ]

@@ -104,3 +104,35 @@ credentials, permission flags, native-tool restrictions, CLI model arguments, an
 MCP inventory remain host choices. Build the headless product independently with
 `swift build --target AgentClaudeHeadless`. Native Claude session ownership and
 Gemini/ACP execution remain subsequent extraction slices.
+
+`AgentGeminiHeadless` owns Gemini headless CLI stream execution, per-run session
+capture, typed event parsing/projection, diagnostic/error precedence, failure
+mapping, cancellation, and cleanup. Hosts explicitly supply launch inputs,
+run-scoped executors, MCP observation/cleanup, and diagnostics. Public event
+values retain serialized tool arguments without sharing Foundation dictionaries;
+the legacy tool-summary presentation remains unchanged. Malformed JSON and
+provider error results fail the stream, stderr remains visible, and exit code 148
+keeps Gemini's API-error classification. Replacement and disposal await retired
+runs; parser/session state cannot leak into a replacement. A successful run emits
+one completion, including clean exits without result frames.
+
+`GeminiPromptDelivery` preserves explicit file references while escaping stray
+at-signs in the user channel. Hosts retain MCP inventories, persistent system
+settings, CLI model/resume flags, credentials, and executable/environment policy.
+Build independently with `swift build --target AgentGeminiHeadless`; the product
+links only headless contracts, CLI execution, AI values, and stream framing.
+Gemini ACP execution and native session controllers remain subsequent slices.
+
+`AgentACPHeadless` owns the live one-shot ACP headless bridge: stream retirement,
+bootstrap/configure/prompt sequencing, approval fallback, event forwarding,
+terminal errors, cancellation, and single shutdown ownership. Hosts prepare a
+controller through explicit operations and supply support/admission, error
+normalization, session configuration, MCP correlation, provider identity, and
+approval policy. Its event vocabulary uses existing AgentRuntimeKit approval and
+session values. The product imports no app module, UI, transport, or persistence.
+
+Old-consumer cancellation is scoped to its stream token and cannot dispose a
+replacement. Replacement/disposal await retired producers and controller cleanup;
+concurrent disposal shares shutdown. The legacy app lock/asserted-Sendable
+lifecycle owner is no longer needed. Native ACP transport/session controllers and
+prompt-only provider orchestration remain subsequent extraction boundaries.
