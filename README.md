@@ -33,3 +33,19 @@ Build the products independently with `swift build --target AgentProcessSupport`
 Claude/ACP clients and native session controllers remain subsequent extractions.
 
 Source lineage: RepoPrompt (`github.com/ajmcclary/RepoPrompt`), Apache-2.0.
+
+`AgentClaudeProtocol` owns Claude native control-message decoding/encoding,
+stateful two-lane event translation, provider-neutral result projection, and
+lifecycle wire-fact extraction. Public control payloads use immutable JSON data
+rather than sharing Foundation object graphs; unknown fields and large integers
+survive. Batches retain raw evidence, compatibility results, normalized events,
+and redacted diagnostics together. Tool-status ownership and logging callbacks
+are host inputs. The runtime kit still owns vocabulary, lifecycle normalization,
+redaction, partial input assembly, and accounting. This product links only the
+core AI contracts, Claude/agent runtime values, and stream-framing primitives;
+it introduces no HTTP, storage, UI, or process-spawn dependency to those kits.
+Reasoning extraction follows host policy on the compatibility lane; RepoPrompt
+retains its existing disabled flag and projection-authority policy.
+
+Build this product independently with `swift build --target AgentClaudeProtocol`.
+Native Claude process/session ownership and ACP clients remain later slices.
