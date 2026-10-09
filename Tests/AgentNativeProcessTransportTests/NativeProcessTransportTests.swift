@@ -125,4 +125,49 @@ final class NativeProcessTransportTests: XCTestCase {
         await t.invalidate()?.finish()
     }
 
+    func testEOFFollowsAllBytesAndCarriesCapturedGeneration() async throws {
+        actor Output {
+            var bytes = Data(); var atEOF: Data?; var generation: UInt64?
+            func append(_ data: Data) { bytes.append(data) }
+            func eof(_ token: UInt64) { atEOF = bytes; generation = token }
+        }
+        let output = Output(); let probe = Probe(); let t = transport(probe)
+        let expected = String(repeating: "payload", count: 20000)
+        let fixture = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try Data(expected.utf8).write(to: fixture)
+        defer { try? FileManager.default.removeItem(at: fixture) }
+        try t.spawn(.init(command: "/bin/cat", arguments: [fixture.path], environment: [:], workingDirectory: "/"))
+        let generation = t.generation
+        try t.startReaders(stdoutLabel: "fixture stdout", stderrLabel: "fixture stderr",
+                           onStdout: { _, data in await output.append(data) }, onStderr: { _, _ in },
+                           onStdoutEOF: { await output.eof($0) })
+        try await waitUntil { await output.atEOF != nil }
+        let bytes = await output.atEOF; let token = await output.generation
+        XCTAssertEqual(bytes, Data(expected.utf8)); XCTAssertEqual(token, generation)
+        await t.invalidate()?.finish()
+    }
+    func testCancelledReaderDoesNotEmitEOFForReplacement() async throws {
+        actor EOF { var count = 0; func record() { count += 1 } }
+        let eof = EOF(); let probe = Probe(); let t = transport(probe)
+        try t.spawn(spec())
+        try t.startReaders(stdoutLabel: "fixture stdout", stderrLabel: "fixture stderr",
+                           onStdout: { _, _ in }, onStderr: { _, _ in }, onStdoutEOF: { _ in await eof.record() })
+        await t.invalidate()?.finish()
+        try t.spawn(spec()); await t.invalidate()?.finish()
+        let count = await eof.count; XCTAssertEqual(count, 0)
+    }
+    func testFileHandleWriteStrategyKeepsExactInputBytes() async throws {
+        let probe = Probe()
+        let t = AgentNativeProcessTransport(lifecycle: .init(readPreflight: { _, _ in },
+            waitForTermination: { await probe.wait($0) }, terminateAndReap: { await probe.reap($0) }), inputWriteStrategy: .fileHandle)
+        try t.spawn(.init(command: "/bin/cat", arguments: [], environment: [:], workingDirectory: "/"))
+        try t.startReaders(stdoutLabel: "fixture stdout", stderrLabel: "fixture stderr",
+                           onStdout: { _, data in await probe.stdout(data) }, onStderr: { _, _ in })
+        let payload = Data("{\"text\":\"🧭\"}\n".utf8)
+        try t.writeFrame(payload)
+        try await waitUntil { await probe.data.count == payload.count }
+        let actual = await probe.data; XCTAssertEqual(actual, payload)
+        await t.invalidate()?.finish()
+    }
+
 }

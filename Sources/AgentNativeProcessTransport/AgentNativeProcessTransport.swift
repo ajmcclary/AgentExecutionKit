@@ -25,6 +25,7 @@ public final class AgentNativeProcessTransport {
             self.readPreflight = readPreflight; self.waitForTermination = waitForTermination; self.terminateAndReap = terminateAndReap
         }
     }
+    public enum InputWriteStrategy: Sendable { case descriptor, fileHandle }
     public enum TransportError: Error, Sendable { case unavailable, alreadyRunning, waiterAlreadyInstalled }
 
     /// Sealed cleanup ownership. Repeated/concurrent finish calls await the same
@@ -56,6 +57,7 @@ public final class AgentNativeProcessTransport {
         deinit { _ = cleanupTask() }
     }
 
+    private let inputWriteStrategy: InputWriteStrategy
     private let lifecycle: Lifecycle
     private var process: SpawnedProcess?
     private var stdoutReader: ProcessPipeReader?
@@ -66,7 +68,9 @@ public final class AgentNativeProcessTransport {
     public var hasWaiter: Bool { waiter != nil }
     public var pid: Int32? { process?.pid }
 
-    public init(lifecycle: Lifecycle) { self.lifecycle = lifecycle }
+    public init(lifecycle: Lifecycle, inputWriteStrategy: InputWriteStrategy = .descriptor) {
+        self.lifecycle = lifecycle; self.inputWriteStrategy = inputWriteStrategy
+    }
     @discardableResult
     public func spawn(_ spec: LaunchSpec) throws -> Int32 {
         guard process == nil, waiter == nil else { throw TransportError.alreadyRunning }
@@ -78,14 +82,16 @@ public final class AgentNativeProcessTransport {
     }
     public func startReaders(stdoutLabel: String, stderrLabel: String,
         onStdout: @escaping @Sendable (UInt64, Data) async -> Void,
-        onStderr: @escaping @Sendable (UInt64, Data) async -> Void) throws {
+        onStderr: @escaping @Sendable (UInt64, Data) async -> Void,
+        onStdoutEOF: (@Sendable (UInt64) async -> Void)? = nil) throws {
         guard let process else { throw TransportError.unavailable }
         stdoutReader?.cancel(); stderrReader?.cancel()
         stdoutReader = nil; stderrReader = nil
         let generation = generation
         let stdout = ProcessPipeReader()
         try stdout.start(handle: process.stdout, label: stdoutLabel, preflight: lifecycle.readPreflight,
-                         onChunk: { await onStdout(generation, $0) })
+                         onChunk: { await onStdout(generation, $0) },
+                         onEOF: { await onStdoutEOF?(generation) })
         stdoutReader = stdout
         let stderr = ProcessPipeReader()
         do {
@@ -107,8 +113,14 @@ public final class AgentNativeProcessTransport {
     }
     public func writeFrame(_ data: Data, expectedGeneration: UInt64? = nil) throws {
         guard expectedGeneration == nil || expectedGeneration == generation,
-              let fd = process?.stdinDescriptor else { throw TransportError.unavailable }
-        try FDWriteSupport.writeAll(data, to: fd)
+              let process else { throw TransportError.unavailable }
+        switch inputWriteStrategy {
+        case .descriptor:
+            guard let fd = process.stdinDescriptor else { throw TransportError.unavailable }
+            try FDWriteSupport.writeAll(data, to: fd)
+        case .fileHandle:
+            try process.stdin?.write(contentsOf: data)
+        }
     }
     /// Natural exit is already reaped. A stale exit may not clear a replacement.
     @discardableResult

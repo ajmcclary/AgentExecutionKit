@@ -154,3 +154,11 @@ owners and unused leases also initiate cleanup through the same ownership path.
 The product depends only on ProcessKit; it adds no protocol/UI/storage dependencies
 to the process primitives. Build it independently with
 `swift build --target AgentNativeProcessTransport`.
+
+Native transports also support ordered stdout EOF callbacks, carrying the
+captured generation and suppressing EOF when the reader is cancelled. This lets
+providers such as Claude retain EOF-owned teardown instead of adopting ACP's
+waiter-owned exit policy. Hosts select descriptor or FileHandle stdin writes;
+FileHandle mode retains the provider's existing Foundation write/error behavior.
+Protocol framing, trailing-line flush, turn reconciliation, and error presentation
+remain outside physical transport.
