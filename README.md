@@ -223,3 +223,17 @@ dependency. Scope retirement cancels interactions before terminal, invalidates o
 tickets, refuses late requests, and guards reentrant reply ownership. Raw-input
 projection preserves UTF-8, escaping and pretty-print size bounds. Build independently
 with swift build --target AgentACPPermissions.
+
+AgentACPEvents owns the existing sendable runtime event vocabulary used by native
+and headless adapters. AgentACPTurnExecution owns prompt submission, active-turn
+identity, stream replacement/finish, terminal claims, and steering settlement/
+timeout/cancellation. Neither product links process, storage or UI code. Provider
+prompt construction, raw capture, identity reconciliation, error presentation,
+usage/tool finalization and permission settlement are explicit owner-actor hooks.
+
+Terminal ownership is claimed before call-outs; disposition events precede the
+terminal exactly once. Stream epochs fence old completion callbacks and suppress
+post-terminal runtime events. Settlement slots reserve before cancellation handler
+installation, so cancellation/completion cannot lose registration or resume twice.
+Timeouts cancel only their waiter; the provider's prompt remains independently owned.
+Build separately with swift build --target AgentACPEvents and AgentACPTurnExecution.

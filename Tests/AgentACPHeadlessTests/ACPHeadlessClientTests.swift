@@ -1,3 +1,4 @@
+import AgentACPEvents
 import XCTest
 import Foundation
 import AIClientKit
