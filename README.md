@@ -314,3 +314,11 @@ filtering, ordered session/usage/content work, and the wire-derived turn verdict
 Hosts inject translator policy and capture projection authority; preference lookup,
 metadata/lifecycle application, telemetry, transcript and viewport policy stay with
 the host. Returned frames contain no raw envelopes or runtime events.
+
+`AgentClaudeConnection` owns native Claude byte I/O: generation-fenced process
+transport, line framing/EOF flush, ordered typed message dispatch, bounded stderr
+tail, and concatenated/tail/control-character/plaintext recovery. Lifecycle, error
+factories, command/environment and diagnostics policy are explicit host inputs.
+Recovery observations carry immutable values; hosts retain logging/presentation,
+admission, permissions, session and turn policy. Retired callbacks cannot route
+old frames or writes into a replacement process.
