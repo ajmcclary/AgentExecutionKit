@@ -197,3 +197,19 @@ termination policy and read preflight are explicit inputs. Host session policy,
 concrete tools, permission/approval rules, admission, recovery, MCP registration,
 projection, logging and raw capture stay outside the engine. Build independently
 with `swift build --target AgentACPProtocol` / `--target AgentACPConnection`.
+
+AgentACPSession owns ACP initialization/authentication sequencing, strict capability
+evidence and admission intersection, new/resume/load/fallback orchestration, in-flight
+identity/replay windows, session list/close, mode/model commands, and discovery
+metadata. Accepted session identities retain their UTF-8 bytes. It inherits the
+owner actor explicitly for async commands; host observers read the same synchronous
+state. No process, storage, settings, UI, or bundle dependency is introduced.
+
+Hosts inject client identity/capabilities, immutable RPC, authentication selection,
+admission, fallback/error policy, session configuration/MCP objects, and observations.
+Cursor aliases, model preferences/cache persistence, Gemini durable-ID discovery,
+and concrete permission/tool policy remain host-owned. Suspended commands cannot
+commit after retirement; out-of-order mode/model replies cannot overwrite newer
+choices. Admission must finish before session commands and cannot widen advertised
+capabilities. Recovery identity/capabilities survive shutdown while presentation
+metadata is cleared. Build independently with swift build --target AgentACPSession.
