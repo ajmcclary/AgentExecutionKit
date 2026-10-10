@@ -263,3 +263,17 @@ telemetry, content projection and presentation. This product depends only on
 ClaudeRuntimeKit and has no process, UI, persistence or implicit settings dependency.
 
 Build independently with swift build --target AgentClaudeLifecycle.
+
+
+AgentClaudePermissions owns native can_use_tool pending identities, scoped decision
+and cancellation tickets, automatic-reply reservations, allow/deny response
+construction, unsupported-control responses, and write settlement. Hosts supply
+explicit authorization/presentation policy, observation, and writes. RepoPrompt's
+MCP matching rules and card content remain host policy. Allow-once, session accepts,
+permission suggestions, toolUseID, updatedInput, decline/cancel wording and interrupt
+semantics retain the native wire contract. Scope retirement is silent; hosts own
+teardown presentation. Duplicate outstanding requests and reentrant replies cannot
+replace or answer a pending request twice. Tickets expire on ID reuse and scope
+replacement. No process, UI, storage or implicit settings dependency is introduced.
+
+Build independently with swift build --target AgentClaudePermissions.
