@@ -10,7 +10,7 @@ public struct ClaudeProtocolJSONObject: Sendable, Equatable {
 		}
 		self.data = data
 	}
-	fileprivate init(object: [String: Any]) throws {
+	public init(object: [String: Any]) throws {
 		data = try JSONSerialization.data(withJSONObject: object)
 	}
 	/// A fresh compatibility view for host protocol adapters.
@@ -34,6 +34,9 @@ public enum ClaudeNativeProtocolCodec {
 		public let requestID: String
 		public let request: ClaudeProtocolJSONObject
 		public let subtype: String
+		public init(requestID: String, request: ClaudeProtocolJSONObject, subtype: String) {
+			self.requestID = requestID; self.request = request; self.subtype = subtype
+		}
 	}
 	public struct ControlResponse: Sendable {
 		public let requestID: String

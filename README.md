@@ -237,3 +237,16 @@ post-terminal runtime events. Settlement slots reserve before cancellation handl
 installation, so cancellation/completion cannot lose registration or resume twice.
 Timeouts cancel only their waiter; the provider's prompt remains independently owned.
 Build separately with swift build --target AgentACPEvents and AgentACPTurnExecution.
+
+
+AgentClaudeControl owns native control-request IDs, encoding, registration before
+writes, reply matching, bounded deadlines, notification submission, write-failure
+settlement, teardown settlement, and error-response permission recovery. Immutable
+JSON values cross continuations. Hosts inject identity prefixes, availability,
+writes, observation, error vocabulary and deadline delivery on their executor.
+Caller task cancellation intentionally keeps a request pending until a native
+interrupt, reply, deadline or teardown establishes its outcome. The channel has no
+process, UI, storage or configuration dependency; the host keeps permission policy,
+initialize admission, model/effort decisions, and raw-event logging.
+
+Build independently with swift build --target AgentClaudeControl.
