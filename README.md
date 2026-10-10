@@ -176,3 +176,24 @@ strict or canonical numeric matching, deadline policy/diagnostics, and cancellat
 semantics; session/prompt and permission policy remain host-owned. The pure RPC
 product links only OpenCodeRuntimeKit's existing numeric contracts, without process,
 HTTP, storage, or UI dependencies. Build with `swift build --target AgentACPRPC`.
+
+`AgentACPProtocol` owns immutable JSON objects, ACP JSON-RPC wire classification,
+request encoding, and fail-closed stdout framing. Unknown fields and original
+message bytes survive; compatibility keeps object-result precedence, default empty
+params, exact numeric IDs/error codes, whitespace handling, and partial-line rules.
+Completed and buffered lines share the same limit. After overflow, retained tails
+and subsequent lines cannot be interpreted as frames. This product links only
+AgentACPRPC and the separate stream-framing product, without process primitives.
+
+`AgentACPConnection` composes that protocol, the shared request store, and native
+physical transport into an actor-confined connection engine. It owns generation
+fences, request registration/write/response dispatch, deadline delivery, pending
+teardown, stderr framing, diagnostic counters/previews, and immutable observation
+callbacks. Owners feed reader bytes on their serialized executor; no task captures
+connection state. Inbound/outbound observations are fenced against reentrant
+retirement/replacement. Wire failures resolve pending requests even without a host
+session controller. Error factories, timeout selection/diagnostics, launch inputs,
+termination policy and read preflight are explicit inputs. Host session policy,
+concrete tools, permission/approval rules, admission, recovery, MCP registration,
+projection, logging and raw capture stay outside the engine. Build independently
+with `swift build --target AgentACPProtocol` / `--target AgentACPConnection`.
