@@ -213,3 +213,13 @@ commit after retirement; out-of-order mode/model replies cannot overwrite newer
 choices. Admission must finish before session commands and cannot widen advertised
 capabilities. Recovery identity/capabilities survive shutdown while presentation
 metadata is cleared. Build independently with swift build --target AgentACPSession.
+
+AgentACPPermissions owns permission validation, typed option projections, matching
+mechanisms, FIFO presentation, decision tickets, wire outcomes and settlement.
+Hosts supply authorization/preferences, bound session identity, approval formatting,
+writes and observations. Automatic approval has no implicit setting or requester-label
+shortcut. The product reuses AgentRuntimeKit values and has no process/UI/storage
+dependency. Scope retirement cancels interactions before terminal, invalidates old
+tickets, refuses late requests, and guards reentrant reply ownership. Raw-input
+projection preserves UTF-8, escaping and pretty-print size bounds. Build independently
+with swift build --target AgentACPPermissions.
