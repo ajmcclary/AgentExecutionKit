@@ -307,3 +307,10 @@ product imports an app or implicitly reads bundle/settings/storage.
 
 Build independently with swift build --target AgentClaudeEvents and
 swift build --target AgentClaudeMetadata.
+
+`AgentClaudeContent` owns the native content pipeline: translator state, redacted
+diagnostic accumulation, explicit normalized/legacy projection, transport-noise
+filtering, ordered session/usage/content work, and the wire-derived turn verdict.
+Hosts inject translator policy and capture projection authority; preference lookup,
+metadata/lifecycle application, telemetry, transcript and viewport policy stay with
+the host. Returned frames contain no raw envelopes or runtime events.
