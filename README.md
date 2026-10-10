@@ -349,3 +349,16 @@ namespace and build/manifest/schema identity. It preserves the legacy JSON envel
 record fields, outcome tokens and eight-record recency policy. One instance serializes
 whole transactions; hosts should share an instance for each namespace. History never
 supplies admission authority or persists dynamic capability grants.
+
+`AgentClaudeIdentity` owns ordered runtime identity resolution, canonical-path
+resolution, streaming SHA-256/size reads and Security.framework classification.
+Hosts inject executable launchability, home classification and team-identifier
+validation policy; no shell/environment, preferences or app singleton is read.
+Resolution remains caller-owned and synchronous. The byte hash precedes execution
+and is a compatibility identity, not an atomic execution guarantee.
+
+`AgentClaudeLaunch` also supplies requested-profile construction and command,
+model-route, effort suppression, permission and workspace/temp classification.
+Default model identity and temporary directory are explicit inputs. Hosts retain
+config/selection precedence and conversions of their backend/auth/effort vocabulary.
+The canonical profile retains its existing certified digest.
