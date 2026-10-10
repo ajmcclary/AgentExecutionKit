@@ -329,3 +329,10 @@ lifecycle dispatch and native event-stream lifetime. It accepts explicit RPC,
 permission-round-trip and admission callbacks. Rejection or retirement cannot
 publish readiness. Hosts keep transport, launch/compatibility policy, timers,
 telemetry, storage and UI; mutable child services remain private to the owner.
+
+`AgentClaudeLaunch` owns immutable launch artifacts, ordered plan construction,
+prelaunch admission gating, effective knobs, provenance comparison and command
+cycle guards. Host callbacks supply typed backend/authentication evidence,
+executable resolution, environment/argv policy, and requested profiles. Observe-only
+uses one requested plan; enforced rejection occurs before effective flag/plan work.
+No implicit credentials, settings, bundle, process or lifecycle dependency is added.
