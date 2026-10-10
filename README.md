@@ -277,3 +277,18 @@ replace or answer a pending request twice. Tickets expire on ID reuse and scope
 replacement. No process, UI, storage or implicit settings dependency is introduced.
 
 Build independently with swift build --target AgentClaudePermissions.
+
+
+AgentClaudeSession owns native initialization readiness, versioned initial settings,
+latest live-setting resolution intent, initial convergence after concurrent updates,
+and epoch retirement. Initialization observes the response, applies settings, completes
+the host permission-mode round trip, and passes host admission before committing
+readiness. Live outcomes distinguish no process, superseded, pending initialization,
+no request, and an acknowledged apply; only acknowledged apply establishes acceptance.
+The native readiness window after initial settings is preserved, as are nil initial
+settings, unbounded initial-setting RPCs, five-second live-setting deadlines, and
+same-epoch real ACK semantics. Hosts retain model/effort resolution, capability policy,
+admission, metadata projection, telemetry and process ownership. RPCs and hooks are
+explicit inputs; no UI, process, persistence or implicit settings dependency is added.
+
+Build independently with swift build --target AgentClaudeSession.
