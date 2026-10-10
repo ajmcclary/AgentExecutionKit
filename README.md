@@ -162,3 +162,17 @@ waiter-owned exit policy. Hosts select descriptor or FileHandle stdin writes;
 FileHandle mode retains the provider's existing Foundation write/error behavior.
 Protocol framing, trailing-line flush, turn reconciliation, and error presentation
 remain outside physical transport.
+
+`AgentACPRPC` owns typed ACP request identifiers, canonical numeric response
+matching, exact provider error codes/details, pending continuations, monotonic
+request allocation, deadlines, explicit cancellation, and fail-all teardown.
+Replies carry immutable JSON bytes across isolation boundaries. The store removes
+requests under a lock before resuming continuations or invoking host timeout
+factories. Deadlines dispatch onto the host executor before claiming a request,
+preserving actor-ordered response/expiry delivery; stale tickets cannot complete
+a replacement request or invoke diagnostic factories. Permission
+ownership continues to use typed identities without response aliases. Hosts choose
+strict or canonical numeric matching, deadline policy/diagnostics, and cancellation
+semantics; session/prompt and permission policy remain host-owned. The pure RPC
+product links only OpenCodeRuntimeKit's existing numeric contracts, without process,
+HTTP, storage, or UI dependencies. Build with `swift build --target AgentACPRPC`.

@@ -16,6 +16,7 @@ let package = Package(
         .library(name: "AgentClaudeHeadless", targets: ["AgentClaudeHeadless"]),
         .library(name: "AgentGeminiHeadless", targets: ["AgentGeminiHeadless"]),
         .library(name: "AgentACPHeadless", targets: ["AgentACPHeadless"]),
+        .library(name: "AgentACPRPC", targets: ["AgentACPRPC"]),
         .library(name: "AgentNativeProcessTransport", targets: ["AgentNativeProcessTransport"])
     ],
     dependencies: [
@@ -24,6 +25,7 @@ let package = Package(
         .package(url: "https://github.com/ajmcclary/CodexRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.4")),
         .package(url: "https://github.com/ajmcclary/CodexAppServerKit.git", .upToNextMinor(from: "0.1.0-beta.4")),
         .package(url: "https://github.com/ajmcclary/ClaudeRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.3")),
+        .package(url: "https://github.com/ajmcclary/OpenCodeRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.4")),
         .package(url: "https://github.com/ajmcclary/AIClientKit.git", .upToNextMinor(from: "0.1.0-beta.9"))
     ],
     targets: [
@@ -65,6 +67,8 @@ let package = Package(
         .testTarget(name: "AgentGeminiHeadlessTests", dependencies: ["AgentGeminiHeadless", "AgentHeadlessContracts", "AgentCLIExecution", .product(name: "AIClientKit", package: "AIClientKit")], swiftSettings: settings),
         .target(name: "AgentACPHeadless", dependencies: ["AgentHeadlessContracts", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .testTarget(name: "AgentACPHeadlessTests", dependencies: ["AgentACPHeadless", "AgentHeadlessContracts", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
+        .target(name: "AgentACPRPC", dependencies: [.product(name: "OpenCodeRuntimeKit", package: "OpenCodeRuntimeKit")], swiftSettings: settings),
+        .testTarget(name: "AgentACPRPCTests", dependencies: ["AgentACPRPC"], swiftSettings: settings),
         .target(name: "AgentNativeProcessTransport", dependencies: [.product(name: "ProcessKit", package: "ProcessKit")], swiftSettings: settings),
         .testTarget(name: "AgentNativeProcessTransportTests", dependencies: ["AgentNativeProcessTransport", .product(name: "ProcessKit", package: "ProcessKit")], swiftSettings: settings),
         .target(name: "AgentExecutionKit", dependencies: ["AgentProcessSupport"], swiftSettings: settings),
