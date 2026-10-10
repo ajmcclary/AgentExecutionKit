@@ -336,3 +336,16 @@ cycle guards. Host callbacks supply typed backend/authentication evidence,
 executable resolution, environment/argv policy, and requested profiles. Observe-only
 uses one requested plan; enforced rejection occurs before effective flag/plan work.
 No implicit credentials, settings, bundle, process or lifecycle dependency is added.
+
+`AgentClaudeCapabilities` owns the typed initialize-response predicate, permission
+mode echo validation, session capability projection and model/effort admission.
+Model and effort catalogs and effort parsing are injected. Certified and runtime
+catalogs only narrow host offerings; stage-zero/one refusal observations remain
+inert. Immutable projections are Sendable and remain session-scoped.
+
+`AgentClaudeCompatibilityStorage` owns bounded exact-identity observation history,
+five-axis invalidation and outcome agreement. Hosts inject Data preferences,
+namespace and build/manifest/schema identity. It preserves the legacy JSON envelope,
+record fields, outcome tokens and eight-record recency policy. One instance serializes
+whole transactions; hosts should share an instance for each namespace. History never
+supplies admission authority or persists dynamic capability grants.

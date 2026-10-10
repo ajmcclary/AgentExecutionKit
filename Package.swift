@@ -20,6 +20,8 @@ let package = Package(
         .library(name: "AgentClaudeConnection", targets: ["AgentClaudeConnection"]),
         .library(name: "AgentClaudeExecution", targets: ["AgentClaudeExecution"]),
         .library(name: "AgentClaudeLaunch", targets: ["AgentClaudeLaunch"]),
+        .library(name: "AgentClaudeCapabilities", targets: ["AgentClaudeCapabilities"]),
+        .library(name: "AgentClaudeCompatibilityStorage", targets: ["AgentClaudeCompatibilityStorage"]),
         .library(name: "AgentCLIExecution", targets: ["AgentCLIExecution"]),
         .library(name: "AgentHeadlessContracts", targets: ["AgentHeadlessContracts"]),
         .library(name: "AgentCodexExec", targets: ["AgentCodexExec"]),
@@ -89,6 +91,10 @@ let package = Package(
         .testTarget(name: "AgentClaudeExecutionTests", dependencies: ["AgentClaudeExecution", "AgentClaudeProtocol", "AgentClaudeContent", "AgentClaudeEvents", "AgentClaudeSession", "AgentClaudeLifecycle", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentClaudeLaunch", dependencies: ["AgentClaudeProtocol", .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
         .testTarget(name: "AgentClaudeLaunchTests", dependencies: ["AgentClaudeLaunch", "AgentClaudeProtocol", .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
+        .target(name: "AgentClaudeCapabilities", dependencies: [.product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
+        .testTarget(name: "AgentClaudeCapabilitiesTests", dependencies: ["AgentClaudeCapabilities", .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
+        .target(name: "AgentClaudeCompatibilityStorage", dependencies: [.product(name: "AIClientStorage", package: "AIClientKit"), .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
+        .testTarget(name: "AgentClaudeCompatibilityStorageTests", dependencies: [.product(name: "AIClientStorage", package: "AIClientKit"), "AgentClaudeCompatibilityStorage", .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentCLIExecution", dependencies: [
             .product(name: "ProcessKit", package: "ProcessKit"),
             .product(name: "ProcessStreamFraming", package: "ProcessKit")
