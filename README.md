@@ -322,3 +322,10 @@ factories, command/environment and diagnostics policy are explicit host inputs.
 Recovery observations carry immutable values; hosts retain logging/presentation,
 admission, permissions, session and turn policy. Retired callbacks cannot route
 old frames or writes into a replacement process.
+
+`AgentClaudeExecution` owns native execution composition: initialization/readiness,
+settings convergence, metadata publication, content projection, exact-generation
+lifecycle dispatch and native event-stream lifetime. It accepts explicit RPC,
+permission-round-trip and admission callbacks. Rejection or retirement cannot
+publish readiness. Hosts keep transport, launch/compatibility policy, timers,
+telemetry, storage and UI; mutable child services remain private to the owner.

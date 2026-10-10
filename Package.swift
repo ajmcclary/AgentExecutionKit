@@ -18,6 +18,7 @@ let package = Package(
         .library(name: "AgentClaudeMetadata", targets: ["AgentClaudeMetadata"]),
         .library(name: "AgentClaudeContent", targets: ["AgentClaudeContent"]),
         .library(name: "AgentClaudeConnection", targets: ["AgentClaudeConnection"]),
+        .library(name: "AgentClaudeExecution", targets: ["AgentClaudeExecution"]),
         .library(name: "AgentCLIExecution", targets: ["AgentCLIExecution"]),
         .library(name: "AgentHeadlessContracts", targets: ["AgentHeadlessContracts"]),
         .library(name: "AgentCodexExec", targets: ["AgentCodexExec"]),
@@ -83,6 +84,8 @@ let package = Package(
         .testTarget(name: "AgentClaudeContentTests", dependencies: ["AgentClaudeContent", "AgentClaudeProtocol", "AgentClaudeEvents", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentClaudeConnection", dependencies: ["AgentClaudeProtocol", "AgentNativeProcessTransport", .product(name: "ProcessStreamFraming", package: "ProcessKit")], swiftSettings: settings),
         .testTarget(name: "AgentClaudeConnectionTests", dependencies: ["AgentClaudeConnection", "AgentClaudeProtocol", "AgentNativeProcessTransport", .product(name: "ProcessKit", package: "ProcessKit"), .product(name: "ProcessStreamFraming", package: "ProcessKit")], swiftSettings: settings),
+        .target(name: "AgentClaudeExecution", dependencies: ["AgentClaudeProtocol", "AgentClaudeContent", "AgentClaudeEvents", "AgentClaudeMetadata", "AgentClaudeSession", "AgentClaudeLifecycle", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
+        .testTarget(name: "AgentClaudeExecutionTests", dependencies: ["AgentClaudeExecution", "AgentClaudeProtocol", "AgentClaudeContent", "AgentClaudeEvents", "AgentClaudeSession", "AgentClaudeLifecycle", .product(name: "AIClientKit", package: "AIClientKit"), .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentCLIExecution", dependencies: [
             .product(name: "ProcessKit", package: "ProcessKit"),
             .product(name: "ProcessStreamFraming", package: "ProcessKit")
