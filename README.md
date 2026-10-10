@@ -292,3 +292,18 @@ admission, metadata projection, telemetry and process ownership. RPCs and hooks 
 explicit inputs; no UI, process, persistence or implicit settings dependency is added.
 
 Build independently with swift build --target AgentClaudeSession.
+
+
+AgentClaudeEvents owns public native event/status/session-reference values and
+actor-confined event-stream lifetime. Tokens optionally fence producers from a
+replaced stream; reset finishes the old stream and creates a fresh iterator boundary.
+AgentClaudeMetadata owns initialize/system-init parsing, normalized session identity,
+merged runtime status, publication deduplication and launch observation reset. Raw
+MCP names/statuses and canonical model/fast-mode JSON retain native semantics.
+Metadata reset preserves session identity. Initialize identity publication precedes
+snapshot storage, with the complete snapshot published at readiness. Hosts supply
+MCP identity/failure policy, telemetry, content projection and UI behavior; neither
+product imports an app or implicitly reads bundle/settings/storage.
+
+Build independently with swift build --target AgentClaudeEvents and
+swift build --target AgentClaudeMetadata.

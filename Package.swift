@@ -14,6 +14,8 @@ let package = Package(
         .library(name: "AgentClaudeLifecycle", targets: ["AgentClaudeLifecycle"]),
         .library(name: "AgentClaudePermissions", targets: ["AgentClaudePermissions"]),
         .library(name: "AgentClaudeSession", targets: ["AgentClaudeSession"]),
+        .library(name: "AgentClaudeEvents", targets: ["AgentClaudeEvents"]),
+        .library(name: "AgentClaudeMetadata", targets: ["AgentClaudeMetadata"]),
         .library(name: "AgentCLIExecution", targets: ["AgentCLIExecution"]),
         .library(name: "AgentHeadlessContracts", targets: ["AgentHeadlessContracts"]),
         .library(name: "AgentCodexExec", targets: ["AgentCodexExec"]),
@@ -71,6 +73,10 @@ let package = Package(
         .testTarget(name: "AgentClaudePermissionsTests", dependencies: ["AgentClaudePermissions", "AgentClaudeProtocol", .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentClaudeSession", dependencies: ["AgentClaudeProtocol"], swiftSettings: settings),
         .testTarget(name: "AgentClaudeSessionTests", dependencies: ["AgentClaudeSession", "AgentClaudeProtocol"], swiftSettings: settings),
+        .target(name: "AgentClaudeEvents", dependencies: [.product(name: "AIClientKit", package: "AIClientKit"), .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit"), .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
+        .testTarget(name: "AgentClaudeEventsTests", dependencies: ["AgentClaudeEvents"], swiftSettings: settings),
+        .target(name: "AgentClaudeMetadata", dependencies: ["AgentClaudeEvents", "AgentClaudeProtocol"], swiftSettings: settings),
+        .testTarget(name: "AgentClaudeMetadataTests", dependencies: ["AgentClaudeMetadata", "AgentClaudeEvents", "AgentClaudeProtocol"], swiftSettings: settings),
         .target(name: "AgentCLIExecution", dependencies: [
             .product(name: "ProcessKit", package: "ProcessKit"),
             .product(name: "ProcessStreamFraming", package: "ProcessKit")
