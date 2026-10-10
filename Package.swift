@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "AgentCodexClient", targets: ["AgentCodexClient"]),
         .library(name: "AgentClaudeProtocol", targets: ["AgentClaudeProtocol"]),
         .library(name: "AgentClaudeControl", targets: ["AgentClaudeControl"]),
+        .library(name: "AgentClaudeLifecycle", targets: ["AgentClaudeLifecycle"]),
         .library(name: "AgentCLIExecution", targets: ["AgentCLIExecution"]),
         .library(name: "AgentHeadlessContracts", targets: ["AgentHeadlessContracts"]),
         .library(name: "AgentCodexExec", targets: ["AgentCodexExec"]),
@@ -62,6 +63,8 @@ let package = Package(
         ], swiftSettings: settings),
         .target(name: "AgentClaudeControl", dependencies: ["AgentClaudeProtocol"], swiftSettings: settings),
         .testTarget(name: "AgentClaudeControlTests", dependencies: ["AgentClaudeControl", "AgentClaudeProtocol"], swiftSettings: settings),
+        .target(name: "AgentClaudeLifecycle", dependencies: [.product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
+        .testTarget(name: "AgentClaudeLifecycleTests", dependencies: ["AgentClaudeLifecycle", .product(name: "ClaudeRuntimeKit", package: "ClaudeRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentCLIExecution", dependencies: [
             .product(name: "ProcessKit", package: "ProcessKit"),
             .product(name: "ProcessStreamFraming", package: "ProcessKit")

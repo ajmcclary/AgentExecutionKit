@@ -250,3 +250,16 @@ process, UI, storage or configuration dependency; the host keeps permission poli
 initialize admission, model/effort decisions, and raw-event logging.
 
 Build independently with swift build --target AgentClaudeControl.
+
+
+AgentClaudeLifecycle owns the native turn ledger, ingress generation stamping,
+ClaudeRuntimeKit reconciler, bounded observation/completion histories, and strict
+completion dispatch. Hosts capture a batch before projecting stream content and
+apply it afterward. Batches are single-use capabilities tied to their owner and
+transport epoch. Ledger removal precedes callbacks, including reentrant application.
+Shutdown preserves observed outcomes and abandons unobserved turns; EOF and protocol
+failure keep their distinct existing dispositions. Hosts keep fallback timers,
+telemetry, content projection and presentation. This product depends only on
+ClaudeRuntimeKit and has no process, UI, persistence or implicit settings dependency.
+
+Build independently with swift build --target AgentClaudeLifecycle.
