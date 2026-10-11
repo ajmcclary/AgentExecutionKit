@@ -60,13 +60,14 @@ final class ClaudeNativeConnectionLifecycleTests: XCTestCase {
         XCTAssertEqual(order, ["readers", "invalidate", "reaped", "failed"])
     }
     func testStartupWaitsForPriorTransportTeardownBeforeProcessCheck() async throws {
-        let owner = ClaudeNativeClientLifecycle(); let gate = Gate(); var checked = false
+        let owner = ClaudeNativeClientLifecycle(); let gate = Gate(); var checked = false; var startupEntered = false
         let teardown = Task { await owner.tearDownTransport(invalidate: { nil }, clearRegistration: { await gate.wait() }) }
         while !(await gate.entered) { await Task.yield() }
-        let startup = Task { try await owner.startTransport(hasProcess: { checked = true; return true }, resetEpoch: { XCTFail() },
+        let startup = Task { startupEntered = true; try await owner.startTransport(hasProcess: { checked = true; return true }, resetEpoch: { XCTFail() },
             admit: { XCTFail(); return 0 }, adopt: { _ in XCTFail() }, spawn: { _ in XCTFail(); return 0 },
             beginEpoch: { XCTFail() }, startReaders: { XCTFail() }, invalidateReaders: { XCTFail() }, registerPID: { _ in XCTFail() }) }
-        await Task.yield(); XCTAssertFalse(checked)
+        while !startupEntered { await Task.yield() }
+        XCTAssertFalse(checked)
         await gate.release(); await teardown.value; try await startup.value
         XCTAssertTrue(checked)
     }
