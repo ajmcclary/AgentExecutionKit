@@ -373,3 +373,12 @@ selection precede credential reads; compatible failures never fall back to a
 standard credential. No implicit preferences, storage, process, bundle or UI
 access is introduced. Persisted authentication identifiers and metadata fields
 retain their legacy spelling.
+
+`AgentClaudeClient` composes native startup/shutdown resource ownership, shared
+transport-teardown waiting, expected-PID registration fencing, targeted interrupt
+acknowledgements, and one-shot resume recovery. It preserves native error values
+and localized descriptions. Client lifecycle operations inherit an explicit caller
+actor; config preparation, process leases, registration, admission/lifecycle
+application, logging and session replacement remain explicit ports. Mutable resource
+state has one owner; no app, UI, implicit singleton, credential or preference access
+is added. Policy/capability refusals never silently retry a resume as a fresh session.
