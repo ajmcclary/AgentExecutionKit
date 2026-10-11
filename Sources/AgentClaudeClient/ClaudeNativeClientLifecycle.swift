@@ -123,6 +123,15 @@ public final class ClaudeNativeClientLifecycle {
         if let configURL { await preparer.cleanupConfigFile(configURL); self.configURL = nil }
         actions.finish()
     }
+    /// The caller retains telemetry and execution effects; this owner gates
+    /// failures once shutdown has begun and awaits the same teardown path.
+    public func failProtocol(fail: () -> Void, shutdown: () async -> Void,
+            isolation: isolated (any Actor)? = #isolation) async {
+        guard !isShuttingDown else { return }
+        fail()
+        await shutdown()
+    }
+
     public enum InterruptObservation {
         case acknowledged(target: ClaudeTurnGeneration?)
         case timedOut

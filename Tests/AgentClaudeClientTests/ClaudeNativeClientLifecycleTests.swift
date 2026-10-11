@@ -158,4 +158,16 @@ final class ClaudeNativeClientLifecycleTests: XCTestCase {
         }
         XCTAssertEqual(retried, 1)
     }
+    func testProtocolFailureEffectsPrecedeAwaitedShutdownAndLateFailuresAreInert() async {
+        let owner = ClaudeNativeClientLifecycle(); let record = Recorder(); let gate = Gate()
+        let first = Task { await owner.failProtocol(fail: { record.add("failure") }, shutdown: {
+            await owner.shutdown(actions: .init(prepare: { record.add("prepare") }, teardownTransport: { await gate.wait() }, retireEpoch: { record.add("retire") }, finish: { record.add("finish") }), preparer: preparer(record))
+        }) }
+        while !(await gate.entered) { await Task.yield() }
+        await owner.failProtocol(fail: { XCTFail("late failure") }, shutdown: { XCTFail("duplicate shutdown") })
+        XCTAssertEqual(record.values, ["failure", "prepare"])
+        await gate.release(); await first.value
+        XCTAssertEqual(record.values, ["failure", "prepare", "retire", "finish"])
+    }
+
 }

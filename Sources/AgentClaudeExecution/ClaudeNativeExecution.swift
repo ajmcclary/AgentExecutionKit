@@ -41,10 +41,19 @@ public final class ClaudeNativeExecution {
 	private let initialization: ClaudeSessionInitialization
 	private let unavailable: @Sendable () -> any Error
 	private var transportScope = UUID()
+	public struct IdleFallbackToken: Equatable, Sendable {
+		fileprivate let id: UUID
+		fileprivate let producer: Token
+	}
+	private var idleFallback: (token: IdleFallbackToken, task: Task<Void, Never>)?
+	private let sleep: @Sendable (TimeInterval) async throws -> Void
 	public init(authority: ClaudeProjectionAuthority, enableDebugLogging: Bool = false,
-		translatorPolicy: ClaudeTranslatorPolicy, unavailable: @escaping @Sendable () -> any Error) {
+		translatorPolicy: ClaudeTranslatorPolicy, unavailable: @escaping @Sendable () -> any Error,
+		sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { seconds in
+			try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+		}) {
 		content = ClaudeContentPipeline(authority: authority, enableDebugLogging: enableDebugLogging, policy: translatorPolicy)
-		initialization = ClaudeSessionInitialization(retiredError: unavailable); self.unavailable = unavailable
+		initialization = ClaudeSessionInitialization(retiredError: unavailable); self.unavailable = unavailable; self.sleep = sleep
 	}
 	public var token: Token { .init(transport: transportScope, stream: eventsOwner.token) }
 	public var events: AsyncStream<ClaudeNativeEvent> { eventsOwner.events }
@@ -63,13 +72,13 @@ public final class ClaudeNativeExecution {
 	public var completions: [ClaudeReconciledCompletion] { lifecycle.completions }
 	public func generation(for id: UUID) -> ClaudeTurnGeneration? { lifecycle.generation(for: id) }
 	public func ensureEventsReady() { eventsOwner.ensureReady() }
-	public func resetEventsForNewRun() { eventsOwner.reset() }
-	public func finishEvents() { eventsOwner.finish() }
-	public func beginLaunch() { transportScope = UUID(); initialization.beginLaunch() }
+	public func resetEventsForNewRun() { cancelIdleFallback(); eventsOwner.reset() }
+	public func finishEvents() { cancelIdleFallback(); eventsOwner.finish() }
+	public func beginLaunch() { cancelIdleFallback(); transportScope = UUID(); initialization.beginLaunch() }
 	public func storeSettings(_ request: ClaudeProtocolJSONObject?) { initialization.storeSettings(request) }
-	public func retireInitialization() { transportScope = UUID(); initialization.retire() }
+	public func retireInitialization() { cancelIdleFallback(); transportScope = UUID(); initialization.retire() }
 	public func beginTransportEpoch(observe: Observer) {
-		transportScope = UUID(); lifecycle.beginNewEpoch()
+		cancelIdleFallback(); transportScope = UUID(); lifecycle.beginNewEpoch()
 		let stamp = token
 		applyLifecycle(ingestLifecycle(.host(.transportReestablished)), observe: observe)
 		guard stamp == token else { return }
@@ -78,7 +87,7 @@ public final class ClaudeNativeExecution {
 		metadata.resetObservations()
 	}
 	@discardableResult public func openTurn(id: UUID = UUID()) -> UUID { lifecycle.openTurn(id: id).id }
-	public func clearTurns() { lifecycle.clearTurns() }
+	public func clearTurns() { cancelIdleFallback(); lifecycle.clearTurns() }
 	public func ingestLifecycle(_ input: ClaudeLifecycleInput, observedOutcome: ClaudeTurnOutcome? = nil) -> PendingLifecycle {
 		.init(batch: lifecycle.ingest(input, observedOutcome: observedOutcome))
 	}
@@ -88,6 +97,7 @@ public final class ClaudeNativeExecution {
 	private func apply(_ pending: PendingLifecycle, producer: Token, observe: Observer) {
 		lifecycle.apply(pending.batch) { effect in
 			guard producer == token else { return }
+			switch effect { case .completed, .abandoned: cancelIdleFallback(); case .drift: break }
 			observe(.lifecycleEffect(effect))
 			guard producer == token else { return }
 			if case .completed(let turn, let outcome, _) = effect {
@@ -95,6 +105,46 @@ public final class ClaudeNativeExecution {
 			}
 		}
 		if producer == token { observe(.lifecycleSettled) }
+	}
+	/// Timer state lives with the deferred outcomes. The delivery port hops back
+	/// to the caller's actor; it never shares this mutable owner with the task.
+	public func reconcileIdleFallback(seconds: TimeInterval,
+		deliver: @escaping @Sendable (IdleFallbackToken) async -> Void) {
+		guard hasDeferredOutcomes else { cancelIdleFallback(); return }
+		guard idleFallback == nil else { return }
+		let captured = IdleFallbackToken(id: UUID(), producer: token)
+		let sleep = self.sleep
+		let task = Task {
+			try? await sleep(seconds)
+			guard !Task.isCancelled else { return }
+			await deliver(captured)
+		}
+		idleFallback = (captured, task)
+	}
+	public func cancelIdleFallback() {
+		idleFallback?.task.cancel(); idleFallback = nil
+	}
+	/// Single-use deadline authority. Cancellation and stream/transport retirement
+	/// reject callbacks that were already queued on the host actor.
+	public func fireIdleFallback(_ captured: IdleFallbackToken,
+		observeFallback: () -> Void, observe: Observer) {
+		guard idleFallback?.token == captured, captured.producer == token else { return }
+		idleFallback = nil
+		observeFallback()
+		guard captured.producer == token else { return }
+		applyLifecycle(ingestLifecycle(.host(.idleFallbackFired)), observe: observe)
+	}
+	/// Failure rows precede failed completions, including results deferred while
+	/// waiting for an idle boundary. Host observation may retire the producer.
+	public func failProtocol(message: String, observeFailure: () -> Void, observe: Observer) {
+		let producer = token
+		observeFailure()
+		guard producer == token else { return }
+		emit(.error(message), for: producer, observe: observe)
+		guard producer == token else { return }
+		applyLifecycle(ingestLifecycle(.host(.protocolFailureOccurred)), observe: observe)
+		guard producer == token else { return }
+		clearTurns()
 	}
 	private static func turnStatus(for outcome: ClaudeTurnOutcome) -> ClaudeNativeTurnStatus {
 		switch outcome { case .completed: return .completed; case .cancelled: return .cancelled; case .failed: return .failed }

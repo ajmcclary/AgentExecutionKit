@@ -409,3 +409,14 @@ request path without fabricating inbound frames. Context stays local to one ask.
 Caller cancellation preserves the provider's existing pending-RPC semantics;
 transport failure and native deadlines remain authoritative. No app policy or
 implicit settings, identity or storage lookup is introduced.
+
+`ClaudeNativeExecution` owns idle fallback task/cancellation and single-use,
+transport/event-scoped deadline tokens. The host supplies the idle window and
+actor delivery; an injectable sleeper makes timing deterministic. Completion,
+turn clearing and execution retirement cancel deadlines. Queued cancelled or
+retired callbacks cannot complete newer turns. Protocol failure observes host
+telemetry, emits the error, fails all open/deferred turns and clears them in that
+order, fencing every observation against producer retirement.
+`ClaudeNativeClientLifecycle.failProtocol` rejects failures after shutdown starts
+and awaits host shutdown. Diagnostic wording, telemetry and resource policies
+remain explicit host inputs.

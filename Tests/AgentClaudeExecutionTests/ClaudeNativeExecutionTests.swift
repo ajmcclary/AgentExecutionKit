@@ -242,4 +242,93 @@ final class ClaudeNativeExecutionTests: XCTestCase {
 		XCTAssertFalse(e.isInitialized); let events = await finish(e); XCTAssertEqual(labels(events), ["init:s:false"])
 	}
 
+	private func timedEngine(sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { _ in }) -> ClaudeNativeExecution {
+		.init(authority: .normalized, translatorPolicy: .init(isExternallyTrackedTool: { _ in false }, reasoningEnabled: false, diagnostics: { _ in }, reasoningDiagnostics: { _ in }), unavailable: { FixtureError.unavailable }, sleep: sleep)
+	}
+	private func deferResult(_ e: ClaudeNativeExecution) throws {
+		_ = e.openTurn(); try e.consume(state("running"), observe: { _ in })
+		try e.consume(result(), observe: { _ in }); XCTAssertTrue(e.hasDeferredOutcomes)
+	}
+	func testIdleFallbackIsArmedOnceAndSingleUseWithObservationBeforeCompletion() async throws {
+		let e = timedEngine(); try deferResult(e)
+		let delivery = AsyncStream<ClaudeNativeExecution.IdleFallbackToken>.makeStream()
+		e.reconcileIdleFallback(seconds: 0.3) { delivery.continuation.yield($0) }
+		e.reconcileIdleFallback(seconds: 0.3) { _ in XCTFail("duplicate timer") }
+		var iterator = delivery.stream.makeAsyncIterator(); let tokenValue = await iterator.next(); let token = try XCTUnwrap(tokenValue)
+		var order: [String] = []
+		e.fireIdleFallback(token, observeFallback: { order.append("fallback") }, observe: { if case .willEmit(.turnCompleted) = $0 { order.append("completion") } })
+		e.fireIdleFallback(token, observeFallback: { XCTFail("replay") }, observe: { _ in XCTFail("replay") })
+		XCTAssertEqual(order, ["fallback", "completion"]); XCTAssertEqual(e.completions.count, 1)
+		XCTAssertFalse(e.hasDeferredOutcomes)
+	}
+	func testCancelledQueuedTimerCannotCompleteRescheduledTurn() async throws {
+		let e = timedEngine(); try deferResult(e)
+		let delivery = AsyncStream<ClaudeNativeExecution.IdleFallbackToken>.makeStream()
+		e.reconcileIdleFallback(seconds: 1) { delivery.continuation.yield($0) }
+		var iterator = delivery.stream.makeAsyncIterator(); let oldValue = await iterator.next(); let old = try XCTUnwrap(oldValue)
+		e.cancelIdleFallback()
+		e.reconcileIdleFallback(seconds: 1) { delivery.continuation.yield($0) }
+		let freshValue = await iterator.next(); let fresh = try XCTUnwrap(freshValue); XCTAssertNotEqual(old, fresh)
+		e.fireIdleFallback(old, observeFallback: { XCTFail("cancelled") }, observe: { _ in XCTFail("cancelled") })
+		XCTAssertTrue(e.hasDeferredOutcomes)
+		e.fireIdleFallback(fresh, observeFallback: {}, observe: { _ in }); XCTAssertEqual(e.completions.count, 1)
+	}
+	func testIdleBoundaryCancelsQueuedDeadlineWithoutSecondCompletion() async throws {
+		let e = timedEngine(); try deferResult(e)
+		let delivery = AsyncStream<ClaudeNativeExecution.IdleFallbackToken>.makeStream()
+		e.reconcileIdleFallback(seconds: 1) { delivery.continuation.yield($0) }
+		var iterator = delivery.stream.makeAsyncIterator(); let tokenValue = await iterator.next(); let token = try XCTUnwrap(tokenValue)
+		try e.consume(state("idle"), observe: { _ in })
+		e.fireIdleFallback(token, observeFallback: { XCTFail("idle already arrived") }, observe: { _ in XCTFail() })
+		XCTAssertEqual(e.completions.count, 1)
+	}
+	func testNoDeferredOutcomeDoesNotStartTimer() async {
+		let e = timedEngine(sleep: { _ in XCTFail("no deferred turn") })
+		e.reconcileIdleFallback(seconds: 1) { _ in XCTFail() }; await Task.yield()
+	}
+	func testSleepingTimerCancellationDoesNotDeliverAfterSleeperReturns() async throws {
+		let gate = Gate(); let e = timedEngine(sleep: { seconds in XCTAssertEqual(seconds, 0.25); await gate.wait() })
+		try deferResult(e); var entered = gate.entered.makeAsyncIterator()
+		e.reconcileIdleFallback(seconds: 0.25) { _ in XCTFail("cancelled sleeper") }
+		_ = await entered.next(); e.cancelIdleFallback(); await gate.release(); await Task.yield()
+	}
+	func testTimerRetirementRejectsQueuedDeadlineAcrossAllExecutionBoundaries() async throws {
+		for boundary in 0..<6 {
+			let e = timedEngine(); try deferResult(e)
+			let delivery = AsyncStream<ClaudeNativeExecution.IdleFallbackToken>.makeStream()
+			e.reconcileIdleFallback(seconds: 1) { delivery.continuation.yield($0) }
+			var iterator = delivery.stream.makeAsyncIterator(); let tokenValue = await iterator.next(); let token = try XCTUnwrap(tokenValue)
+			switch boundary {
+			case 0: e.beginLaunch(); case 1: e.retireInitialization(); case 2: e.beginTransportEpoch(observe: { _ in })
+			case 3: e.resetEventsForNewRun(); case 4: e.finishEvents(); default: e.clearTurns()
+			}
+			e.fireIdleFallback(token, observeFallback: { XCTFail("retired deadline") }, observe: { _ in XCTFail("retired deadline") })
+		}
+	}
+	func testFallbackObserverReplacementCannotAffectReplacementTransport() async throws {
+		let e = timedEngine(); try deferResult(e)
+		let delivery = AsyncStream<ClaudeNativeExecution.IdleFallbackToken>.makeStream()
+		e.reconcileIdleFallback(seconds: 1) { delivery.continuation.yield($0) }
+		var iterator = delivery.stream.makeAsyncIterator(); let tokenValue = await iterator.next(); let token = try XCTUnwrap(tokenValue)
+		e.fireIdleFallback(token, observeFallback: { e.beginTransportEpoch(observe: { _ in }) }, observe: { _ in XCTFail("replacement") })
+		XCTAssertTrue(e.completions.isEmpty)
+	}
+	func testProtocolFailureOverridesDeferredResultAndEmitsErrorBeforeEveryCompletion() async throws {
+		let e = timedEngine(); try deferResult(e); _ = e.openTurn(); var order: [String] = []
+		e.failProtocol(message: "failure", observeFailure: { order.append("failure-observed") }, observe: {
+			if case .willEmit(let event) = $0 { switch event { case .error(let message): XCTAssertEqual(message, "failure"); order.append("error"); case .turnCompleted(_, let status): XCTAssertEqual(status, .failed); order.append("completion"); default: break } }
+		})
+		XCTAssertEqual(order, ["failure-observed", "error", "completion", "completion"])
+		XCTAssertEqual(e.pendingTurnCount, 0); XCTAssertFalse(e.hasDeferredOutcomes)
+	}
+	func testProtocolFailureObservationAndErrorCallbackRetirementCannotDrainNewEpoch() async throws {
+		for replaceInError in [false, true] {
+			let e = timedEngine(); _ = e.openTurn()
+			e.failProtocol(message: "failure", observeFailure: { if !replaceInError { e.beginTransportEpoch(observe: { _ in }); _ = e.openTurn() } }, observe: {
+				if case .willEmit(.error) = $0 { e.beginTransportEpoch(observe: { _ in }); _ = e.openTurn() }
+			})
+			XCTAssertEqual(e.pendingTurnCount, 2); XCTAssertTrue(e.completions.isEmpty)
+		}
+	}
+
 }
