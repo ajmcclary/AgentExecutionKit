@@ -382,3 +382,11 @@ actor; config preparation, process leases, registration, admission/lifecycle
 application, logging and session replacement remain explicit ports. Mutable resource
 state has one owner; no app, UI, implicit singleton, credential or preference access
 is added. Policy/capability refusals never silently retry a resume as a fresh session.
+
+The client also orders admitted transport startup (epoch reset, immutable launch,
+settings adoption, spawn, permission/execution epoch, readers, PID registration),
+awaits cleanup after partial reader setup, and coordinates EOF flushing and
+closure with generation checks after asynchronous failure and teardown. Write
+failures capture the original connection generation and preserve the thrown
+error; stale failures cannot shut down a replacement connection. Concrete
+admission classification, I/O, logging, timers and transcript effects stay injected.
