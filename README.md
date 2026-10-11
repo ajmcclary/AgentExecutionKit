@@ -399,3 +399,13 @@ response; history records decisions before rejection and cannot grant admission.
 Live settings are gated before host configuration/control effects. Epoch reset
 retires admission snapshots without persisting dynamic models, effort or fast-mode
 state. Foundation initialize dictionaries retain their existing value semantics.
+
+`ClaudeNativeProtocolSession` owns native control RPC/deadlines, inbound routing,
+permission scope/recovery/decisions/cancellation and user-message write/turn order.
+Hosts inject transport availability/writes, timeout delivery, stream consumption,
+approval policy/presentation, per-policy diagnostic context and failure effects.
+Only matched error responses recover permissions; recovered asks use the same
+request path without fabricating inbound frames. Context stays local to one ask.
+Caller cancellation preserves the provider's existing pending-RPC semantics;
+transport failure and native deadlines remain authoritative. No app policy or
+implicit settings, identity or storage lookup is introduced.
