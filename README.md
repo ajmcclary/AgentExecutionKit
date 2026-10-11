@@ -362,3 +362,14 @@ model-route, effort suppression, permission and workspace/temp classification.
 Default model identity and temporary directory are explicit inputs. Hosts retain
 config/selection precedence and conversions of their backend/auth/effort vocabulary.
 The canonical profile retains its existing certified digest.
+
+`AgentClaudeConfiguration` owns authentication-mode selection and derived
+reachability, standard/compatible credential-read ordering, fail-closed standard
+auth policy, immutable typed launch environments, compatible environment emission,
+sanitation, redacted snapshots and durable secret-free credential metadata.
+Hosts provide backend identity/configuration, model validation, credentials,
+policy flags, preset URLs/timeouts and error factories. Validation and model
+selection precede credential reads; compatible failures never fall back to a
+standard credential. No implicit preferences, storage, process, bundle or UI
+access is introduced. Persisted authentication identifiers and metadata fields
+retain their legacy spelling.
