@@ -390,3 +390,12 @@ closure with generation checks after asynchronous failure and teardown. Write
 failures capture the original connection generation and preserve the thrown
 error; stale failures cannot shut down a replacement connection. Concrete
 admission classification, I/O, logging, timers and transcript effects stay injected.
+
+`ClaudeNativeAdmissionState` owns the carried launch envelope, final admission,
+epoch capability projection and compatibility-history observations. Hosts inject
+manifest provenance, static catalogs, effort parsing and their namespaced history
+store. Settlement uses the carried coordinator/stage and the existing initialize
+response; history records decisions before rejection and cannot grant admission.
+Live settings are gated before host configuration/control effects. Epoch reset
+retires admission snapshots without persisting dynamic models, effort or fast-mode
+state. Foundation initialize dictionaries retain their existing value semantics.
