@@ -456,3 +456,15 @@ scoped, delayed work can be promoted, and old task completion cannot remove a ne
 schedule. Caller-actor confinement keeps cache/codec state private; the disk writer
 is an actor and completes waiters only after the latest queued snapshot finishes.
 Build independently with `swift build --target AgentSessionStorage`.
+
+`AgentAttachments` owns image import/classification/fingerprinting, batch path/byte
+deduplication, managed-root cleanup, and one session's turn reservation/consumption/
+deferred cleanup lifecycle. Hosts explicitly supply storage roots, file-system
+operations, clock/identity generation, cleanup policy and provider-consumption
+timing. Typed effects let hosts restore composer images and schedule persistence
+without introducing UI dependencies. Stale reservation IDs cannot alter replacement
+turns; nil IDs preserve legacy current-turn semantics. Session attachment DTOs stay
+in AgentRuntimeKit with unchanged coding. The existing lexical cleanup boundary and
+incoming-batch multiplicity are retained for compatibility. Different hosts must
+supply different storage roots. Build independently with
+`swift build --target AgentAttachments`.
