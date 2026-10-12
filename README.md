@@ -480,3 +480,18 @@ read-only snapshots; independent decoders may safely share instrumentation witho
 sharing Decoder state. Its userInfo key is neutral and never appears in stored
 JSON. Snapshot source/confidence raw values and persisted usage keys remain stable.
 Build independently with `swift build --target AgentUsage`.
+
+`AgentTranscriptPersistence` owns retention tier decisions/mutation, durable-prefix
+preservation, protected tool-tail scanning, structural summary/cache trimming,
+retained-byte measurement, historical field eligibility/recency/export slicing,
+and cold-restore run/span/tool cancellation and summary repair. Models/serialization
+remain in AgentRuntimeKit. Hosts explicitly supply visual working-unit sizing,
+tool visibility, summary presentation, text truncation, clock and diagnostics.
+Services are caller-actor-owned and introduce no app, UI, process or storage-root
+lookup. Protected/newest/active continuation turns may keep pressure above target;
+working-unit limits are thresholds, not unconditional size guarantees. Diagnostic
+value/callback semantics retain Debug/Release behavior. Historical exemption counts
+are bounded to zero for negative inputs; supported/default behavior is preserved.
+Cold restore retains completed tool-family evidence and may leave its earlier call
+row's original pending status; it does not manufacture cancellation for completed
+work. Build independently with `swift build --target AgentTranscriptPersistence`.
