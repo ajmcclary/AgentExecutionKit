@@ -468,3 +468,15 @@ in AgentRuntimeKit with unchanged coding. The existing lexical cleanup boundary 
 incoming-batch multiplicity are retained for compatibility. Different hosts must
 supply different storage roots. Build independently with
 `swift build --target AgentAttachments`.
+
+
+`AgentUsage` owns persisted token rows and their unchanged Codable schema, bounded
+streaming decode, fail-closed summary validation, provider-correct retention,
+Claude/Gemini/OpenCode context restoration, and observable context snapshot values.
+It depends only on AgentRuntimeKit and system frameworks; roots, storage I/O,
+model preferences, live turn estimation/finalization and UI remain host inputs or
+later execution-service boundaries. The optional decode probe uses a Mutex and
+read-only snapshots; independent decoders may safely share instrumentation without
+sharing Decoder state. Its userInfo key is neutral and never appears in stored
+JSON. Snapshot source/confidence raw values and persisted usage keys remain stable.
+Build independently with `swift build --target AgentUsage`.
