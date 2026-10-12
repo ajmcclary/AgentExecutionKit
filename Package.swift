@@ -6,6 +6,7 @@ let package = Package(
     name: "AgentExecutionKit",
     platforms: [.macOS("27.0")],
     products: [
+        .library(name: "AgentSessionContracts", targets: ["AgentSessionContracts"]),
         .library(name: "AgentTranscriptPersistence", targets: ["AgentTranscriptPersistence"]),
         .library(name: "AgentUsage", targets: ["AgentUsage"]),
         .library(name: "AgentAttachments", targets: ["AgentAttachments"]),
@@ -54,6 +55,8 @@ let package = Package(
         .package(url: "https://github.com/ajmcclary/AIClientKit.git", .upToNextMinor(from: "0.1.0-beta.9"))
     ],
     targets: [
+        .target(name: "AgentSessionContracts", dependencies: ["AgentUsage", .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
+        .testTarget(name: "AgentSessionContractsTests", dependencies: ["AgentSessionContracts", "AgentUsage", .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentTranscriptPersistence", dependencies: [.product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .testTarget(name: "AgentTranscriptPersistenceTests", dependencies: ["AgentTranscriptPersistence", .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentUsage", dependencies: [.product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),

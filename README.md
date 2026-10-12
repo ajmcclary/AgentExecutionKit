@@ -495,3 +495,16 @@ are bounded to zero for negative inputs; supported/default behavior is preserved
 Cold restore retains completed tool-family evidence and may leave its earlier call
 row's original pending status; it does not manufacture cancellation for completed
 work. Build independently with `swift build --target AgentTranscriptPersistence`.
+
+
+`AgentSessionContracts` owns the saved-session envelope, Gemini resume metadata,
+lightweight header, unchanged Codable keys/versions/defaults and bounded usage
+integration. It depends only on AgentRuntimeKit, the internal AgentUsage product
+and Foundation. Headers deliberately skip heavy payloads; full sessions decode
+transcripts/items and stream bounded usage rows. Provider/model/session/handoff
+identifiers stay raw. Future/negative versions and unbounded legacy Codex/count
+fields remain uninterpreted data for host admission/reconciliation; codecs do not
+infer policy. Encoder/decoder date strategies remain caller-owned. No app settings,
+storage roots, file reads, UI projection or process access is implicit. RepoPrompt
+retains its storage/repair/presentation extensions. Build independently with
+`swift build --target AgentSessionContracts`.
