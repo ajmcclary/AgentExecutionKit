@@ -420,3 +420,15 @@ order, fencing every observation against producer retirement.
 `ClaudeNativeClientLifecycle.failProtocol` rejects failures after shutdown starts
 and awaits host shutdown. Diagnostic wording, telemetry and resource policies
 remain explicit host inputs.
+
+`ClaudeNativeSessionContract` shares exact native argument ordering, environment
+layering/final scrubbing, initialization, flag settings and permission-mode
+requests. Hosts supply the effective mode, MCP config, tool policy, base/config/
+resolver environments and persisted default-model identity. Tool-search opt-in
+preserves existing values; resume IDs/tool order remain raw. No environment or
+settings lookup is implicit. `ClaudeNativePermissionMode` preserves the separate
+RPC, echo classification, observation ordering and failure propagation.
+`ClaudePermissionPresentation` projects generic approval cards with existing
+stable request/detail IDs, field normalization and detail order. Host thread/turn/
+workspace context is explicit; authorization and concrete tool catalogs stay in
+hosts. Neither product imports an app or UI module.
