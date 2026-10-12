@@ -6,6 +6,7 @@ let package = Package(
     name: "AgentExecutionKit",
     platforms: [.macOS("27.0")],
     products: [
+        .library(name: "AgentSessionStorage", targets: ["AgentSessionStorage"]),
         .library(name: "AgentExecutionKit", targets: ["AgentExecutionKit"]),
         .library(name: "AgentProcessSupport", targets: ["AgentProcessSupport"]),
         .library(name: "AgentCodexClient", targets: ["AgentCodexClient"]),
@@ -50,6 +51,8 @@ let package = Package(
         .package(url: "https://github.com/ajmcclary/AIClientKit.git", .upToNextMinor(from: "0.1.0-beta.9"))
     ],
     targets: [
+        .target(name: "AgentSessionStorage", swiftSettings: settings),
+        .testTarget(name: "AgentSessionStorageTests", dependencies: ["AgentSessionStorage"], swiftSettings: settings),
         .target(name: "AgentProcessSupport", dependencies: [.product(name: "ProcessKit", package: "ProcessKit")], swiftSettings: settings),
         .target(name: "AgentCodexClient", dependencies: [
             .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit"),

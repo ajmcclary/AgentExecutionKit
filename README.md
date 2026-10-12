@@ -445,3 +445,14 @@ cleanup, retires initialization/admission, cleans configuration and finishes eve
 EOF error rows precede completion drains and respect replacement-generation fences.
 The facade is not Sendable; keep one instance under one host or execution-service
 actor. It reads no implicit app settings, identity, credentials or storage.
+
+`AgentSessionStorage` is a separate Foundation-only product for metadata-index
+cache/read/write/upsert/removal, scans/backfill/quarantine, delayed reconciliation,
+and coalesced durable byte writes. Session/index DTOs and codecs, filenames,
+storage roots, decoding/repair and diagnostics remain explicit host contracts.
+The index is a repairable cache; session files remain authoritative. Record sorting
+uses activity/saved dates then raw UUID strings. Reconciliation tokens are owner
+scoped, delayed work can be promoted, and old task completion cannot remove a new
+schedule. Caller-actor confinement keeps cache/codec state private; the disk writer
+is an actor and completes waiters only after the latest queued snapshot finishes.
+Build independently with `swift build --target AgentSessionStorage`.
