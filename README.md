@@ -432,3 +432,16 @@ RPC, echo classification, observation ordering and failure propagation.
 stable request/detail IDs, field normalization and detail order. Host thread/turn/
 workspace context is explicit; authorization and concrete tool catalogs stay in
 hosts. Neither product imports an app or UI module.
+
+`ClaudeNativeSession` is the caller-actor-owned session facade. Its execution,
+control/permission and client-resource owners are private. It composes startup,
+exact admitted settings/transport epochs, initialization/permission observation,
+admission-before-live-settings, write-before-turn submission, captured-target
+interrupts, requests/routing, shutdown and EOF drains. Hosts supply independent
+connection I/O, admission/catalog/configuration policy, diagnostics and actor
+callback delivery. Read-only snapshots and typed events preserve existing values.
+Shutdown retires pending requests/asks, reconciles before clearing, awaits transport
+cleanup, retires initialization/admission, cleans configuration and finishes events.
+EOF error rows precede completion drains and respect replacement-generation fences.
+The facade is not Sendable; keep one instance under one host or execution-service
+actor. It reads no implicit app settings, identity, credentials or storage.
