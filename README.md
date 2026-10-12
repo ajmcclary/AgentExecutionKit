@@ -508,3 +508,16 @@ infer policy. Encoder/decoder date strategies remain caller-owned. No app settin
 storage roots, file reads, UI projection or process access is implicit. RepoPrompt
 retains its storage/repair/presentation extensions. Build independently with
 `swift build --target AgentSessionContracts`.
+
+
+`AgentTranscriptAssembly` owns ordered legacy-row import, turn/span construction,
+per-import processing lifetime, missing-invocation name queues, lifecycle/conclusion
+selection, row import filtering, full-detail working readback, user recency, resume
+history serialization and stable SHA-256 span/summary/conclusion identities. Hosts
+supply concrete tool normalization/boundary meaning, visual frozen-tail allocation,
+summary rendering and visible/history row policy. Services are caller-actor-owned;
+processing state is created afresh for each nonempty import. Existing transcript
+version/sequence rules, raw markup, ordering and recency key-presence semantics are
+preserved. This product does not perform file I/O, viewport control or inference
+of app settings/tool inventories. Build independently with
+`swift build --target AgentTranscriptAssembly`.
