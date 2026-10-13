@@ -571,3 +571,15 @@ coarse semantics; protected/open turns and changed tokens do not reuse completed
 caches. Unused legacy boost-threshold helpers are removed. No UI, storage, process
 or implicit environment/settings dependency is added. Build independently with
 `swift build --target AgentTranscriptProjection`.
+
+
+`AgentSessionHydration` owns persisted-session preparation: load/run normalization,
+canonical rebuild versus legacy construction, frozen-limit normalization, working
+rows, protected presentation, recency recovery, index count and migration-save flags.
+Loader storage scope, model selection, import/presentation policy and index formatting
+are explicit Sendable host ports. The async service inherits its caller actor using
+`isolated (any Actor)? = #isolation`, preserving scheduling without unchecked transfers.
+It retains the three existing cancellation checkpoints, including the legacy nil
+outcome if a cancelled loader returns no session. Results carry Sendable host
+selection/presentation/index values and the unchanged persisted session. No namespace,
+UI, filesystem or process is inferred. Build with `swift build --target AgentSessionHydration`.
