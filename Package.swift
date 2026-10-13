@@ -54,7 +54,7 @@ let package = Package(
         .package(url: "https://github.com/ajmcclary/CodexAppServerKit.git", .upToNextMinor(from: "0.1.0-beta.4")),
         .package(url: "https://github.com/ajmcclary/ClaudeRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.3")),
         .package(url: "https://github.com/ajmcclary/OpenCodeRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.4")),
-        .package(url: "https://github.com/ajmcclary/AIClientKit.git", .upToNextMinor(from: "0.1.0-beta.10"))
+        .package(url: "https://github.com/ajmcclary/AIClientKit.git", .upToNextMinor(from: "0.1.0-beta.11"))
     ],
     targets: [
         .target(name: "AgentTranscriptExport", dependencies: ["AgentTranscriptAssembly", .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
