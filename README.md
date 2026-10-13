@@ -558,3 +558,16 @@ projects once and uses its separate sanitizer. Handoff slices before historical
 policy and clears the durable frontier. Results are conditionally Sendable when
 the host projection is Sendable. Build with
 `swift build --target AgentTranscriptMaterialization`.
+
+
+`AgentTranscriptProjection` owns neutral block/anchor/group/protection/cache values,
+full and compact-tier block construction, newest-first detailed tail allocation,
+completed-turn cache refresh, frozen-prefix reuse, anchor indexing, summary aggregation,
+archive/working projection and execution metadata merging. Tool processing factories,
+normalization/suppression, taxonomy, presentation and diagnostics are explicit host
+ports; viewport/scrolling state never enters execution. Per-operation summary caches
+retain legacy keying/lifetimes. Structural validation tokens retain their existing
+coarse semantics; protected/open turns and changed tokens do not reuse completed-turn
+caches. Unused legacy boost-threshold helpers are removed. No UI, storage, process
+or implicit environment/settings dependency is added. Build independently with
+`swift build --target AgentTranscriptProjection`.
