@@ -521,3 +521,15 @@ version/sequence rules, raw markup, ordering and recency key-presence semantics 
 preserved. This product does not perform file I/O, viewport control or inference
 of app settings/tool inventories. Build independently with
 `swift build --target AgentTranscriptAssembly`.
+
+
+`AgentTranscriptExport` owns fork/monitor item budgeting, contiguous-turn narration
+filtering, migration renumbering and turn-cutoff lookup. Hosts materialize
+`AgentTranscriptExportEntry` values from their projection and inject tool visibility
+and diagnostics. Completed tool-result rows can migrate even when XML has only a
+preview or no preview. XML-like text, oldest-first drop priorities, merged system
+rows, and whole-turn prompt/conclusion removal preserve legacy behavior. Ungrouped
+essential rows can exceed the requested budget. The service is caller-owned and
+reads no app settings, storage, process environment or UI. It depends only on
+AgentRuntimeKit and AgentTranscriptAssembly; build with
+`swift build --target AgentTranscriptExport`.
