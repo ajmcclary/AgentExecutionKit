@@ -533,3 +533,15 @@ essential rows can exceed the requested budget. The service is caller-owned and
 reads no app settings, storage, process environment or UI. It depends only on
 AgentRuntimeKit and AgentTranscriptAssembly; build with
 `swift build --target AgentTranscriptExport`.
+
+
+`AgentToolPersistence` owns transcript sanitation traversal, frozen-prefix reuse,
+identity normalization orchestration, runtime/storage result application, cache
+invalidation, argument/path removal and persisted payload/metadata caps. Hosts
+inject concrete tool meaning, runtime/persisted summaries, storage presentation,
+status wire formatting and processing-cache callbacks. Result/metrics values are
+Sendable; the service and its ports remain caller-owned. Storage ignores runtime
+row exemptions and reuse. Byte limits (2048/512) and summary character rules
+(240, shortened to 237 plus ellipsis) preserve existing behavior. Fallback JSON
+must be bounded by the host's renderer. Build independently with
+`swift build --target AgentToolPersistence`; no UI, process or storage dependencies.
