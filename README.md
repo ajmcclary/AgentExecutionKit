@@ -545,3 +545,16 @@ row exemptions and reuse. Byte limits (2048/512) and summary character rules
 (240, shortened to 237 plus ellipsis) preserve existing behavior. Fallback JSON
 must be bounded by the host's renderer. Build independently with
 `swift build --target AgentToolPersistence`; no UI, process or storage dependencies.
+
+
+`AgentTranscriptMaterialization` owns runtime/storage/handoff routing, normalization
+and truncation order, cache-refresh/project ordering, visibility stabilization and
+final metrics. Hosts inject projection values and policy ports; the service never
+references a rendering or app module. Runtime retries sanitize the original input,
+with three allowed visibility changes (four sanitizations, five projections at
+most). At that cap, reported visibility retains the last sanitation input even if
+the latest projection would change it again, preserving legacy behavior. Storage
+projects once and uses its separate sanitizer. Handoff slices before historical
+policy and clears the durable frontier. Results are conditionally Sendable when
+the host projection is Sendable. Build with
+`swift build --target AgentTranscriptMaterialization`.
