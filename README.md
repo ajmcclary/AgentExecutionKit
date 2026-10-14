@@ -583,3 +583,14 @@ It retains the three existing cancellation checkpoints, including the legacy nil
 outcome if a cancelled loader returns no session. Results carry Sendable host
 selection/presentation/index values and the unchanged persisted session. No namespace,
 UI, filesystem or process is inferred. Build with `swift build --target AgentSessionHydration`.
+
+
+`AgentSessionSidebar` owns restoration selection, explicit-binding precedence,
+preferred ordering, prioritized fast-index/single-file/full loading, stream batching,
+aggregate merging and termination cancellation. Hosts supply Sendable metadata
+loaders, sorting/access/entry projection, diagnostics and workspace scope. Metadata
+DTOs and disk schemas stay host-owned. Producer tasks explicitly retain the caller's
+isolated actor; no unchecked transfer or executor change is introduced. Existing
+nullable-recency preferences, duplicate precedence, invalid/stale binding handling,
+nonpreferred final batches and best-effort targeted fallback semantics are retained.
+Build independently with `swift build --target AgentSessionSidebar`.

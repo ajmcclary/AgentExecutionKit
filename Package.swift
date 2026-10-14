@@ -6,6 +6,7 @@ let package = Package(
     name: "AgentExecutionKit",
     platforms: [.macOS("27.0")],
     products: [
+        .library(name: "AgentSessionSidebar", targets: ["AgentSessionSidebar"]),
         .library(name: "AgentSessionHydration", targets: ["AgentSessionHydration"]),
         .library(name: "AgentTranscriptProjection", targets: ["AgentTranscriptProjection"]),
         .library(name: "AgentTranscriptMaterialization", targets: ["AgentTranscriptMaterialization"]),
@@ -61,6 +62,8 @@ let package = Package(
         .package(url: "https://github.com/ajmcclary/AIClientKit.git", .upToNextMinor(from: "0.1.0-beta.11"))
     ],
     targets: [
+        .target(name: "AgentSessionSidebar", dependencies: [.product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
+        .testTarget(name: "AgentSessionSidebarTests", dependencies: ["AgentSessionSidebar", .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentSessionHydration", dependencies: ["AgentSessionContracts", "AgentTranscriptPersistence", .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .testTarget(name: "AgentSessionHydrationTests", dependencies: ["AgentSessionHydration", "AgentSessionContracts", .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
         .target(name: "AgentTranscriptProjection", dependencies: ["AgentTranscriptAssembly", "AgentTranscriptPersistence", .product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
