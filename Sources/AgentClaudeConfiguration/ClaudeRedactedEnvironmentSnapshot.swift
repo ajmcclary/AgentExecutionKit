@@ -1,4 +1,5 @@
 import Foundation
+import ClaudeRuntimeKit
 
 // R15j. A launch environment cannot be handed to a test as a raw dictionary.
 //
@@ -86,10 +87,12 @@ public struct ClaudeRedactedEnvironmentSnapshot: Equatable, Sendable, CustomStri
 		]
 		if exact.contains(upper) { return true }
 		// Generic credential-shaped names, e.g. a compatible backend's own token.
-		for marker in ["TOKEN", "SECRET", "PASSWORD", "CREDENTIAL", "APIKEY", "API_KEY"]
+		for marker in ["TOKEN", "SECRET", "PASSWORD", "PASSPHRASE", "CREDENTIAL", "APIKEY", "API_KEY", "COOKIE"]
 		where upper.contains(marker) {
 			return true
 		}
-		return false
+		// Anything the structural payload redactor treats as sensitive is secret
+		// here too, so the two predicates cannot disagree in that direction.
+		return ClaudeCredentialRedactor.isSensitiveKey(key)
 	}
 }

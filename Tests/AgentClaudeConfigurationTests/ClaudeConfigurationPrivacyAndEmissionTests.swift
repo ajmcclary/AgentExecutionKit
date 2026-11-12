@@ -33,4 +33,20 @@ final class ClaudeConfigurationPrivacyAndEmissionTests: XCTestCase {
         let text = ClaudeCredentialRedactor.redactAuthenticationValues(in: "ANTHROPIC_API_KEY=synthetic OTHER=keep")
         XCTAssertEqual(text, "ANTHROPIC_API_KEY=<redacted> OTHER=keep")
     }
+    func testAuthenticationValueScrubCoversEverySecretBearingNameAndQuotedValues() {
+        let text = ClaudeCredentialRedactor.redactAuthenticationValues(in:
+            "AWS_SECRET_ACCESS_KEY=aws-x AWS_SESSION_TOKEN=sess GOOGLE_API_KEY=g "
+            + "ANTHROPIC_CUSTOM_HEADERS=\"X-Key: abc def\" GITHUB_TOKEN='gh tok' ANTHROPIC_API_KEY=k "
+            + "MAX_THINKING_TOKENS=1024 PATH=/bin")
+        XCTAssertEqual(text,
+            "AWS_SECRET_ACCESS_KEY=<redacted> AWS_SESSION_TOKEN=<redacted> GOOGLE_API_KEY=<redacted> "
+            + "ANTHROPIC_CUSTOM_HEADERS=<redacted> GITHUB_TOKEN=<redacted> ANTHROPIC_API_KEY=<redacted> "
+            + "MAX_THINKING_TOKENS=1024 PATH=/bin")
+        for secret in ["aws-x", "sess", "abc", "def", "gh tok"] { XCTAssertFalse(text.contains(secret), secret) }
+    }
+    func testSnapshotSecretPredicateCoversTheStructuralRedactorsNames() {
+        for key in ["set-cookie", "passphrase", "ssh_passphrase", "client_credential"] {
+            XCTAssertTrue(ClaudeRedactedEnvironmentSnapshot.isSecretBearing(key), key)
+        }
+    }
 }
