@@ -1202,10 +1202,10 @@ public struct ClaudeNativeEventTranslator: Sendable {
 	/// `parseUsage` below derives its aggregate from the same fields.
 	private func parseUsageBreakdown(_ value: [String: Any]?) -> ClaudeUsageBreakdown? {
 		guard let value else { return nil }
-		let input = numberToInt(value["input_tokens"]) ?? numberToInt(value["inputTokens"])
-		let output = numberToInt(value["output_tokens"]) ?? numberToInt(value["outputTokens"])
-		let cacheRead = numberToInt(value["cache_read_input_tokens"]) ?? numberToInt(value["cacheReadInputTokens"])
-		let cacheCreation = numberToInt(value["cache_creation_input_tokens"]) ?? numberToInt(value["cacheCreationInputTokens"])
+		let input = tokenCount(value["input_tokens"]) ?? tokenCount(value["inputTokens"])
+		let output = tokenCount(value["output_tokens"]) ?? tokenCount(value["outputTokens"])
+		let cacheRead = tokenCount(value["cache_read_input_tokens"]) ?? tokenCount(value["cacheReadInputTokens"])
+		let cacheCreation = tokenCount(value["cache_creation_input_tokens"]) ?? tokenCount(value["cacheCreationInputTokens"])
 		guard input != nil || output != nil || cacheRead != nil || cacheCreation != nil else { return nil }
 		return ClaudeUsageBreakdown(
 			inputTokens: input ?? 0,
@@ -1253,10 +1253,10 @@ public struct ClaudeNativeEventTranslator: Sendable {
 	private func parseUsage(_ value: [String: Any]?) -> ParsedTokenUsage? {
 		guard let value else { return nil }
 
-		let input = numberToInt(value["input_tokens"]) ?? numberToInt(value["inputTokens"])
-		let output = numberToInt(value["output_tokens"]) ?? numberToInt(value["outputTokens"])
-		let cacheRead = numberToInt(value["cache_read_input_tokens"]) ?? numberToInt(value["cacheReadInputTokens"])
-		let cacheCreation = numberToInt(value["cache_creation_input_tokens"]) ?? numberToInt(value["cacheCreationInputTokens"])
+		let input = tokenCount(value["input_tokens"]) ?? tokenCount(value["inputTokens"])
+		let output = tokenCount(value["output_tokens"]) ?? tokenCount(value["outputTokens"])
+		let cacheRead = tokenCount(value["cache_read_input_tokens"]) ?? tokenCount(value["cacheReadInputTokens"])
+		let cacheCreation = tokenCount(value["cache_creation_input_tokens"]) ?? tokenCount(value["cacheCreationInputTokens"])
 
 		let hasAnyUsageField = input != nil || output != nil || cacheRead != nil || cacheCreation != nil
 		guard hasAnyUsageField else { return nil }
@@ -1273,6 +1273,20 @@ public struct ClaudeNativeEventTranslator: Sendable {
 			outputTokens: normalizedOutput,
 			contextUsedTokens: contextUsedTokens
 		)
+	}
+
+	/// Upper bound of a plausible wire token count (the OpenCode usage bound,
+	/// `AgentTokenUsagePersist.maxPersistedTokenCount`). Usage counts come from
+	/// the CLI and are untrusted; bounding each one here means the sums below
+	/// (and `ClaudeUsageBreakdown`'s) cannot overflow.
+	static let maxWireTokenCount = 1_000_000_000_000
+
+	/// A wire token count, or nil when it is absent, unrepresentable or above
+	/// ``maxWireTokenCount``. An out-of-domain count is unknown, not clamped:
+	/// clamping would fabricate a plausible total.
+	private func tokenCount(_ value: Any?) -> Int? {
+		guard let count = numberToInt(value), count <= Self.maxWireTokenCount else { return nil }
+		return count
 	}
 
 	private func numberToInt(_ value: Any?) -> Int? {

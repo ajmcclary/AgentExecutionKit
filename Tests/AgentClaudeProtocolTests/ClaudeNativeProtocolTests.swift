@@ -12,6 +12,28 @@ final class ClaudeNativeProtocolTests: XCTestCase {
 		XCTAssertEqual(batch.results.first?.completionTokens, 1)
 		XCTAssertEqual(batch.results.first?.promptTokens, 0)
 	}
+	func testHugeIntegerUsageCountsAreTreatedAsUnknownInsteadOfOverflowing() {
+		let lines = [
+			#"{"type":"assistant","message":{"id":"m1","content":[],"usage":{"input_tokens":9223372036854775807,"cache_read_input_tokens":1,"output_tokens":2}}}"#,
+			#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"m2","usage":{"input_tokens":3,"cache_creation_input_tokens":9223372036854775807,"cache_read_input_tokens":9223372036854775807}}}}"#,
+			#"{"type":"result","subtype":"success","usage":{"input_tokens":9223372036854775807,"output_tokens":9223372036854775807,"cache_read_input_tokens":9223372036854775807}}"#
+		]
+		for line in lines {
+			var translator = ClaudeNativeEventTranslator()
+			let batch = translator.translate(Data(line.utf8))
+			for result in batch.results {
+				XCTAssertLessThanOrEqual(result.promptTokens ?? 0, 1_000_000_000_000)
+				XCTAssertLessThanOrEqual(result.contextUsedTokens ?? 0, 3_000_000_000_000)
+			}
+			for case .usage(let usage) in batch.normalizedEvents {
+				XCTAssertLessThanOrEqual(usage.breakdown.contextUsedTokens, 3_000_000_000_000)
+			}
+		}
+		var translator = ClaudeNativeEventTranslator()
+		let batch = translator.translate(Data(lines[0].utf8))
+		XCTAssertEqual(batch.results.first?.completionTokens, 2, "in-range sibling counts survive")
+		XCTAssertEqual(batch.results.first?.contextUsedTokens, 1, "the out-of-range count is unknown, not clamped")
+	}
 	func testTypedControlRequestRetainsLargeNumbersAndUnknownFieldsAcrossTasks() async throws {
 		let line = Data(#"{"type":"control_request","request_id":"r","request":{"subtype":"future","number":9007199254740993,"unknown":{"flag":true}}}"#.utf8)
 		let value = try XCTUnwrap(ClaudeNativeProtocolCodec.decodeLine(line))
