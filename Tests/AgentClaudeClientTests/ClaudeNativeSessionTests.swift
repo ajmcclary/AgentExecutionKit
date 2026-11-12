@@ -218,9 +218,12 @@ final class ClaudeNativeSessionTests: XCTestCase {
     func testShutdownReentrancyDoesNotRepeatEffects() async throws {
         let s = owner(); let gate = Gate(); let entered = await gate.entered; let order = Recorder()
         let first = Task { await s.shutdown(preparer: preparer(order), observeShutdown: { order.add("shutdown") }, teardownTransport: { await gate.wait() }, retireAdmission: { order.add("retire") }, finish: { order.add("finish") }, observe: { _ in }) }
-        var iterator = entered.makeAsyncIterator(); _ = await iterator.next(); await self.shutdown(s, record: order)
-        XCTAssertEqual(order.values, ["shutdown"]); await gate.release(); await first.value
-        XCTAssertEqual(order.values, ["shutdown", "retire", "finish"])
+        var iterator = entered.makeAsyncIterator(); _ = await iterator.next()
+        // A repeat caller waits for the in-flight shutdown instead of returning early.
+        let second = Task { await self.shutdown(s, record: order); order.add("second-returned") }
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(order.values, ["shutdown"]); await gate.release(); await first.value; await second.value
+        XCTAssertEqual(order.values, ["shutdown", "retire", "finish", "second-returned"])
     }
     func testEOFErrorPrecedesDeferredAndFailedCompletionsAndRetiresAsks() async throws {
         let s = owner(); _ = s.openTurn(); try s.consume(state("running"), observe: { _ in }); try s.consume(result(), observe: { _ in }); _ = s.openTurn()

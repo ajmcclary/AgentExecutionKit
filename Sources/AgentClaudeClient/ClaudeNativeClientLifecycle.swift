@@ -29,8 +29,22 @@ public final class ClaudeNativeClientLifecycle {
     public private(set) var isShuttingDown = false
     private var registeredPID: Int32?
     private var teardown: (id: UUID, task: Task<Void, Never>)?
+    /// Advanced by every `beginStart()`. A shutdown captures it on entry and only
+    /// retires the session generation it was started for.
+    private var startEpoch: UInt64 = 0
+    /// Set for the whole of `shutdown(actions:preparer:)`, not just its transport
+    /// teardown, so a start or a repeat shutdown can wait for it in full.
+    private var isShutdownInFlight = false
+    private var shutdownWaiters: [CheckedContinuation<Void, Never>] = []
     public init() {}
-    public func beginStart() { isShuttingDown = false }
+    public func beginStart() { isShuttingDown = false; startEpoch &+= 1 }
+    /// Returns once no shutdown is in flight. A shutdown that is suspended (for
+    /// example in the SIGTERM grace period) still has retirement, config cleanup
+    /// and event-stream finishing ahead of it; a new start must not overlap them.
+    public func awaitShutdown(isolation: isolated (any Actor)? = #isolation) async {
+        guard isShutdownInFlight else { return }
+        await withCheckedContinuation(isolation: isolation) { shutdownWaiters.append($0) }
+    }
     @_spi(Testing) public func setConfigURLForTesting(_ url: URL?) { configURL = url }
     public func prepareRuntime(preparer: ClaudeNativeRuntimePreparer,
             unavailable: @Sendable () -> any Error, isolation: isolated (any Actor)? = #isolation) async throws {
@@ -93,6 +107,7 @@ public final class ClaudeNativeClientLifecycle {
         }
     }
     public func startOrResume<Reference: Sendable>(actions: StartActions<Reference>, isolation: isolated (any Actor)? = #isolation) async throws -> Reference {
+        await awaitShutdown(isolation: isolation)
         if actions.isReady() { return actions.reference() }
         actions.ensureEvents(); beginStart(); actions.observeStart()
         do {
@@ -115,13 +130,28 @@ public final class ClaudeNativeClientLifecycle {
     }
     public func shutdown(actions: ShutdownActions, preparer: ClaudeNativeRuntimePreparer,
             isolation: isolated (any Actor)? = #isolation) async {
+        if isShutdownInFlight { await awaitShutdown(isolation: isolation); return }
         guard !isShuttingDown else { return }
         isShuttingDown = true
+        isShutdownInFlight = true
+        let epoch = startEpoch
         actions.prepare()
         await actions.teardownTransport()
-        actions.retireEpoch()
-        if let configURL { await preparer.cleanupConfigFile(configURL); self.configURL = nil }
-        actions.finish()
+        // Each step after a suspension belongs to the generation this shutdown
+        // was started for; a host that began a new one meanwhile keeps its
+        // initialization, config file and event stream.
+        if epoch == startEpoch {
+            actions.retireEpoch()
+            if let configURL {
+                self.configURL = nil
+                await preparer.cleanupConfigFile(configURL)
+            }
+            if epoch == startEpoch { actions.finish() }
+        }
+        isShutdownInFlight = false
+        let waiters = shutdownWaiters
+        shutdownWaiters = []
+        for waiter in waiters { waiter.resume() }
     }
     /// The caller retains telemetry and execution effects; this owner gates
     /// failures once shutdown has begun and awaits the same teardown path.

@@ -75,17 +75,61 @@ final class ClaudeNativeClientLifecycleTests: XCTestCase {
             XCTAssertEqual(record.values, hasConfig ? ["cleanup"] : [])
         }
     }
-    func testShutdownReentrancyReturnsWithoutRepeatingEffectsAndCleanupRunsAfterRetirement() async {
+    func testRepeatShutdownWaitsForTheInFlightShutdownWithoutRepeatingEffects() async {
         let owner = ClaudeNativeClientLifecycle(); let record = Recorder(); let gate = Gate()
         owner.setConfigURLForTesting(URL(fileURLWithPath: "/host/config"))
         let actions = ClaudeNativeClientLifecycle.ShutdownActions(prepare: { record.add("prepare") },
             teardownTransport: { await gate.wait(); record.add("teardown") }, retireEpoch: { record.add("retire") }, finish: { record.add("finish") })
         let first = Task { await owner.shutdown(actions: actions, preparer: preparer(record)) }
         while !(await gate.entered) { await Task.yield() }
-        await owner.shutdown(actions: shutdownActions(record), preparer: preparer(record))
-        XCTAssertEqual(record.values, ["prepare"])
-        await gate.release(); await first.value
-        XCTAssertEqual(record.values, ["prepare", "teardown", "retire", "cleanup", "finish"])
+        let second = Task {
+            await owner.shutdown(actions: shutdownActions(record), preparer: preparer(record))
+            record.add("second-returned")
+        }
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(record.values, ["prepare"], "a repeat caller neither repeats effects nor returns before the child is reaped")
+        await gate.release(); await first.value; await second.value
+        XCTAssertEqual(record.values, ["prepare", "teardown", "retire", "cleanup", "finish", "second-returned"])
+    }
+    func testStartDuringInFlightShutdownWaitsForTheWholeShutdownBeforeStarting() async throws {
+        let owner = ClaudeNativeClientLifecycle(); let record = Recorder(); let gate = Gate()
+        let ports = preparer(record)
+        try await owner.prepareRuntime(preparer: ports, unavailable: { Failure.start })
+        let shutdown = Task { await owner.shutdown(actions: .init(prepare: { record.add("prepare-shutdown") },
+            teardownTransport: { await gate.wait(); record.add("teardown") }, retireEpoch: { record.add("retire") },
+            finish: { record.add("finish") }), preparer: ports) }
+        while !(await gate.entered) { await Task.yield() }
+        let start = Task { () async throws -> String in
+            try await owner.startOrResume(actions: .init(isReady: { false }, reference: { "new" },
+                ensureEvents: { record.add("events") }, observeStart: { record.add("start") },
+                prepare: { try await owner.prepareRuntime(preparer: ports, unavailable: { Failure.start }) },
+                spawn: { record.add("spawn") }, initialize: { record.add("init") }, hasProcess: { true },
+                shutdown: { record.add("start-cleanup") }))
+        }
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(record.values, ["available", "config", "prepare-shutdown"])
+        await gate.release(); await shutdown.value
+        let reference = try await start.value
+        XCTAssertEqual(reference, "new")
+        XCTAssertEqual(record.values, ["available", "config", "prepare-shutdown", "teardown", "retire", "cleanup", "finish",
+                                       "events", "start", "available", "config", "spawn", "init"])
+        XCTAssertFalse(owner.isShuttingDown); XCTAssertNotNil(owner.configURL)
+    }
+    func testShutdownDoesNotRetireASessionGenerationStartedDuringItsTeardown() async throws {
+        let owner = ClaudeNativeClientLifecycle(); let record = Recorder(); let gate = Gate()
+        let ports = preparer(record)
+        try await owner.prepareRuntime(preparer: ports, unavailable: { Failure.start })
+        let shutdown = Task { await owner.shutdown(actions: .init(prepare: { record.add("prepare-shutdown") },
+            teardownTransport: { await gate.wait(); record.add("teardown") }, retireEpoch: { record.add("retire") },
+            finish: { record.add("finish") }), preparer: ports) }
+        while !(await gate.entered) { await Task.yield() }
+        // A host that bypasses startOrResume begins a new generation mid-teardown.
+        owner.beginStart()
+        try await owner.prepareRuntime(preparer: ports, unavailable: { Failure.start })
+        await gate.release(); await shutdown.value
+        XCTAssertEqual(record.values, ["available", "config", "prepare-shutdown", "teardown"],
+                       "the old shutdown must not retire, delete the config of, or finish the new generation")
+        XCTAssertNotNil(owner.configURL); XCTAssertFalse(owner.isShuttingDown)
     }
     func testConcurrentTeardownSharesInvalidationAndWaitsForTheSameCleanup() async {
         let owner = ClaudeNativeClientLifecycle(); let record = Recorder(); let gate = Gate()
