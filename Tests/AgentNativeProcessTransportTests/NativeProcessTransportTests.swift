@@ -79,6 +79,22 @@ final class NativeProcessTransportTests: XCTestCase {
         XCTAssertFalse(t.hasProcess); XCTAssertFalse(t.hasWaiter)
         let direct = await probe.directReaps; XCTAssertEqual(direct, 0)
     }
+    func testNaturalExitIsReportedOnlyAfterQueuedStdoutIsDelivered() async throws {
+        let probe = Probe(); let t = transport(probe)
+        try t.spawn(spec(["-c", "echo a; sleep 0.02; echo b; sleep 0.02; echo c; exit 0"]))
+        let generation = t.generation
+        try t.startReaders(stdoutLabel: "fixture stdout", stderrLabel: "fixture stderr", onStdout: { _, data in
+            // A slow owner: chunks queue up behind this while the child exits.
+            try? await Task.sleep(for: .milliseconds(80)); await probe.stdout(data)
+        }, onStderr: { _, _ in })
+        try t.startWaiter { generation, _, _ in await probe.exit(generation) }
+        try await waitUntil { await probe.exited.count == 1 }
+        // The owner releases the transport as soon as it sees the exit.
+        XCTAssertTrue(t.observeExit(expectedGeneration: generation))
+        let delivered = await probe.data
+        XCTAssertEqual(String(decoding: delivered, as: UTF8.self), "a\nb\nc\n",
+                       "the exit notice must not overtake stdout the child wrote before exiting")
+    }
     func testOldGenerationCannotInvalidateOrWriteToReplacement() async throws {
         let probe = Probe(); let t = transport(probe); try t.spawn(spec())
         let oldGeneration = t.generation; let oldLease = try XCTUnwrap(t.invalidate())

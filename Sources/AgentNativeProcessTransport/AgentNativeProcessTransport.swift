@@ -57,9 +57,56 @@ public final class AgentNativeProcessTransport {
         deinit { _ = cleanupTask() }
     }
 
+    /// Signalled once stdout reaches EOF, which `ProcessPipeReader` reports only
+    /// after every earlier chunk callback has returned.
+    private final class StdoutDrain: Sendable {
+        private struct State: Sendable {
+            var drained = false
+            var waiters: [UUID: CheckedContinuation<Void, Never>] = [:]
+        }
+        private let state = Mutex(State())
+        func signal() {
+            let waiters = state.withLock { state -> [CheckedContinuation<Void, Never>] in
+                state.drained = true
+                defer { state.waiters.removeAll() }
+                return Array(state.waiters.values)
+            }
+            for waiter in waiters { waiter.resume() }
+        }
+        /// Returns at EOF, after `timeout`, or on cancellation, whichever is first.
+        func wait(timeout: Duration) async {
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await self.untilDrained() }
+                group.addTask { try? await Task.sleep(for: timeout) }
+                await group.next()
+                group.cancelAll()
+            }
+        }
+        private func untilDrained() async {
+            let id = UUID()
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    let resumeNow = state.withLock { state -> Bool in
+                        if state.drained || Task.isCancelled { return true }
+                        state.waiters[id] = continuation
+                        return false
+                    }
+                    if resumeNow { continuation.resume() }
+                }
+            } onCancel: {
+                state.withLock { $0.waiters.removeValue(forKey: id) }?.resume()
+            }
+        }
+    }
+
+    /// How long a natural exit waits for stdout to drain before it is reported.
+    /// Bounded because a descendant may hold the pipe open past the child's exit.
+    public static let exitStdoutDrainTimeout: Duration = .seconds(2)
+
     private let inputWriteStrategy: InputWriteStrategy
     private let lifecycle: Lifecycle
     private var process: SpawnedProcess?
+    private var stdoutDrain: StdoutDrain?
     private var stdoutReader: ProcessPipeReader?
     private var stderrReader: ProcessPipeReader?
     private var waiter: Task<Void, Never>?
@@ -88,11 +135,13 @@ public final class AgentNativeProcessTransport {
         stdoutReader?.cancel(); stderrReader?.cancel()
         stdoutReader = nil; stderrReader = nil
         let generation = generation
+        let drain = StdoutDrain()
         let stdout = ProcessPipeReader()
         try stdout.start(handle: process.stdout, label: stdoutLabel, preflight: lifecycle.readPreflight,
                          onChunk: { await onStdout(generation, $0) },
-                         onEOF: { await onStdoutEOF?(generation) })
+                         onEOF: { drain.signal(); await onStdoutEOF?(generation) })
         stdoutReader = stdout
+        stdoutDrain = drain
         let stderr = ProcessPipeReader()
         do {
             try stderr.start(handle: process.stderr, label: stderrLabel, preflight: lifecycle.readPreflight,
@@ -106,8 +155,13 @@ public final class AgentNativeProcessTransport {
         guard let process else { throw TransportError.unavailable }
         guard waiter == nil else { throw TransportError.waiterAlreadyInstalled }
         let wait = lifecycle.waitForTermination; let pid = process.pid; let generation = generation
+        let drain = stdoutDrain
         waiter = Task {
             let result = await wait(pid)
+            // The exit notice and each stdout chunk are separate hops onto the
+            // owner; report the exit only after output already written is delivered,
+            // so releasing the readers on exit cannot drop a final reply.
+            await drain?.wait(timeout: Self.exitStdoutDrainTimeout)
             await onExit(generation, result?.exitCode ?? 0, result?.timedOut ?? false)
         }
     }
@@ -148,7 +202,7 @@ public final class AgentNativeProcessTransport {
     }
     private func detachReadersAndInput() {
         stdoutReader?.cancel(); stderrReader?.cancel()
-        stdoutReader = nil; stderrReader = nil
+        stdoutReader = nil; stderrReader = nil; stdoutDrain = nil
         process?.stdout.readabilityHandler = nil
         process?.stderr.readabilityHandler = nil
         process?.stdin?.closeFile()
