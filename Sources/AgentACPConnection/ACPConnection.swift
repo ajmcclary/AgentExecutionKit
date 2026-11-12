@@ -153,6 +153,9 @@ public final class ACPConnection {
 					if let failure { onEvent(.requestFailed(method: resolved.method, message: failure.0, code: failure.1)) }
 				} else {
 					onEvent(.unmatchedResponse(id: id, rawLine: rawLine))
+					// A late reply to a cancelled or expired request is expected and
+					// must not fail the requests that are still healthy.
+					if requests.claimRetired(responseID: id) { continue }
 					if generation == self.generation, hasProcess { requests.failAll(with: errors.protocolViolation("Received unmatched ACP response id \(id.displayValue).")) }
 				}
 			}

@@ -35,7 +35,20 @@ public final class ACPRequestStore: Sendable {
 	private struct State: Sendable {
 		var nextID = 1
 		var pending: [String: Pending] = [:]
+		/// Storage keys of tickets removed by cancel/expire, oldest first. Their
+		/// reply may still arrive; it is late, not a protocol violation.
+		var retired: [String] = []
+		var retiredSet: Set<String> = []
+
+		mutating func retire(_ key: String) {
+			guard retiredSet.insert(key).inserted else { return }
+			retired.append(key)
+			if retired.count > ACPRequestStore.maxRetiredIDs { retiredSet.remove(retired.removeFirst()) }
+		}
 	}
+	/// How many cancelled or expired request ids are remembered so their late
+	/// replies can be told apart from replies to ids that were never issued.
+	public static let maxRetiredIDs = 256
 	private let state = Mutex(State())
 	private let matching: ResponseMatching
 	private let sleep: Sleep
@@ -99,6 +112,20 @@ public final class ACPRequestStore: Sendable {
 		return true
 	}
 
+	/// True, once, when `responseID` belongs to a request that was cancelled or
+	/// expired: its reply arrived late. The host can drop it instead of treating
+	/// it as an unmatched (protocol-violating) response.
+	public func claimRetired(responseID: ACPRequestID) -> Bool {
+		let keys = matching == .strict ? [responseID.storageKey] : responseID.compatibleResponseKeys
+		return state.withLock { state in
+			for key in keys where state.retiredSet.remove(key) != nil {
+				state.retired.removeAll { $0 == key }
+				return true
+			}
+			return false
+		}
+	}
+
 	/// Called on the host executor. A stale expiry never invokes its diagnostic factory.
 	@discardableResult
 	public func expire(_ ticket: Ticket, makeError: () -> any Error) -> Bool {
@@ -124,9 +151,11 @@ public final class ACPRequestStore: Sendable {
 		state.withLock { $0.pending.values.map(\.ticket.method).sorted() }
 	}
 
+	/// Removes a ticket for cancel/expire and remembers its id as retired.
 	private func take(_ ticket: Ticket) -> Pending? {
 		state.withLock { state in
 			guard state.pending[ticket.id.storageKey]?.ticket == ticket else { return nil }
+			state.retire(ticket.id.storageKey)
 			return state.pending.removeValue(forKey: ticket.id.storageKey)
 		}
 	}

@@ -81,6 +81,23 @@ final class ACPConnectionTests: XCTestCase {
 		let (_, second) = try await h.request(); h.feed("{\"id\":999,\"result\":{}}\n")
 		await error(second, equals: .violation("Received unmatched ACP response id 999.")); await h.close()
 	}
+	func testLateReplyToAnExpiredRequestDoesNotFailOtherPendingRequests() async throws {
+		let clock = DeadlineGate()
+		let h = Harness(sleep: { _ in await clock.wait() }); try h.spawn()
+		let (expiredID, expiring) = try await h.request("session/list", deadline: .init(duration: .seconds(1)) { [weak h] ticket in await h?.expire(ticket) })
+		let (promptID, prompt) = try await h.request("session/prompt")
+		await clock.open(); await error(expiring, equals: .timeout)
+		h.feed("{\"id\":\(expiredID),\"result\":{}}\n")
+		XCTAssertTrue(h.events.contains { if case .unmatchedResponse(let id, _) = $0 { return id == .int(expiredID) }; return false },
+					  "the late reply is still reported as a diagnostic")
+		XCTAssertEqual(h.connection.pendingMethods, ["session/prompt"])
+		h.feed("{\"id\":\(promptID),\"result\":{\"stopReason\":\"end_turn\"}}\n")
+		_ = try await prompt.value
+		// A second late reply for the same id is no longer recognised as retired.
+		let (_, next) = try await h.request()
+		h.feed("{\"id\":\(expiredID),\"result\":{}}\n")
+		await error(next, equals: .violation("Received unmatched ACP response id \(expiredID).")); await h.close()
+	}
 	func testOverflowFailsAllAndDropsForgedTailAndLaterNotifications() async throws {
 		let h = Harness(limits: .init(maxLineBytes: 64, maxCarryBytes: 128, tailRetainBytes: 32)); try h.spawn()
 		let (_, first) = try await h.request()
