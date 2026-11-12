@@ -50,7 +50,7 @@ public final class ClaudeNativeExecution {
 	public init(authority: ClaudeProjectionAuthority, enableDebugLogging: Bool = false,
 		translatorPolicy: ClaudeTranslatorPolicy, unavailable: @escaping @Sendable () -> any Error,
 		sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { seconds in
-			try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+			try await Task.sleep(nanoseconds: claudeIdleSleepNanoseconds(seconds: seconds))
 		}) {
 		content = ClaudeContentPipeline(authority: authority, enableDebugLogging: enableDebugLogging, policy: translatorPolicy)
 		initialization = ClaudeSessionInitialization(retiredError: unavailable); self.unavailable = unavailable; self.sleep = sleep
@@ -226,4 +226,14 @@ public final class ClaudeNativeExecution {
 	}
 	/// Corruption fixture only; production cannot separate ledger and reconciliation.
 	@_spi(Testing) public func dropLedgerRecordForTesting(id: UUID) { lifecycle.dropLedgerRecordForTesting(id: id) }
+}
+
+/// Converts a caller-configured interval to a sleep length that cannot trap:
+/// non-positive and NaN become 0, and anything longer than 1e9 s (about 31.7
+/// years, including infinity) is clamped. `UInt64(seconds * 1e9)` traps on
+/// negative, NaN, infinite or very large values.
+@usableFromInline func claudeIdleSleepNanoseconds(seconds: TimeInterval) -> UInt64 {
+	guard seconds > 0 else { return 0 }
+	guard seconds < 1_000_000_000 else { return 1_000_000_000 * 1_000_000_000 }
+	return UInt64(seconds * 1_000_000_000)
 }

@@ -530,7 +530,7 @@ public actor CodexAgentClient {
 					throw error
 				}
 				attempt += 1
-				try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+				try await Task.sleep(nanoseconds: codexSleepNanoseconds(seconds: delay))
 			}
 		}
 	}
@@ -571,7 +571,9 @@ public actor CodexAgentClient {
 		}
 		let requestID = requestStore.makeRequestID()
 		let generation = transport.generation
-		let deadline = timeout ?? config.requestTimeout
+		// Infinity means "no deadline"; a huge finite one is clamped so the
+		// request store's own nanosecond conversion cannot trap.
+		let deadline = (timeout ?? config.requestTimeout).flatMap { $0.isFinite ? min($0, 1_000_000_000) : nil }
 		var payload: [String: Any] = [
 			"method": method,
 			"id": Int(requestID) ?? requestID
@@ -1206,4 +1208,14 @@ public actor CodexAgentClient {
 	}
 
 #endif
+}
+
+/// Converts a caller-configured interval to a sleep length that cannot trap:
+/// non-positive and NaN become 0, and anything longer than 1e9 s (about 31.7
+/// years, including infinity) is clamped. `UInt64(seconds * 1e9)` traps on
+/// negative, NaN, infinite or very large values.
+func codexSleepNanoseconds(seconds: TimeInterval) -> UInt64 {
+	guard seconds > 0 else { return 0 }
+	guard seconds < 1_000_000_000 else { return 1_000_000_000 * 1_000_000_000 }
+	return UInt64(seconds * 1_000_000_000)
 }

@@ -24,7 +24,7 @@ public final class ClaudeNativeSession {
                 unavailable: @escaping @Sendable () -> any Error = { ClaudeNativeClientError.processNotRunning },
                 controlSleep: @escaping ClaudeControlChannel.Sleep = { try await Task.sleep(for: $0) },
                 idleSleep: @escaping @Sendable (TimeInterval) async throws -> Void = {
-                    try await Task.sleep(nanoseconds: UInt64($0 * 1_000_000_000))
+                    try await Task.sleep(nanoseconds: claudeSessionSleepNanoseconds(seconds: $0))
                 }) {
         self.unavailable = unavailable
         execution = .init(authority: authority, enableDebugLogging: enableDebugLogging,
@@ -239,4 +239,14 @@ public final class ClaudeNativeSession {
     @_spi(Testing) public func receiveRequest<Context>(_ request: ClaudeNativeProtocolCodec.ControlRequest, routing: ClaudeNativeProtocolSession.Routing<Context>) {
         protocolSession.receiveRequest(request, routing: routing)
     }
+}
+
+/// Converts a caller-configured interval to a sleep length that cannot trap:
+/// non-positive and NaN become 0, and anything longer than 1e9 s (about 31.7
+/// years, including infinity) is clamped. `UInt64(seconds * 1e9)` traps on
+/// negative, NaN, infinite or very large values.
+@usableFromInline func claudeSessionSleepNanoseconds(seconds: TimeInterval) -> UInt64 {
+    guard seconds > 0 else { return 0 }
+    guard seconds < 1_000_000_000 else { return 1_000_000_000 * 1_000_000_000 }
+    return UInt64(seconds * 1_000_000_000)
 }

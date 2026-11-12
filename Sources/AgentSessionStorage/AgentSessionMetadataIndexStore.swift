@@ -48,8 +48,7 @@ public final class AgentSessionMetadataIndexStore<Index: AgentSessionIndexDocume
     public init(layout: AgentSessionIndexLayout, files: AgentSessionIndexFileSystem = .foundation,
                 now: @escaping @Sendable () -> Date = { Date() },
                 sleep: @escaping @Sendable (TimeInterval) async throws -> Void = { seconds in
-                    let ns = UInt64(min(seconds, Double(UInt64.max) / 1_000_000_000) * 1_000_000_000)
-                    try await Task.sleep(nanoseconds: ns)
+                    try await Task.sleep(nanoseconds: sessionIndexSleepNanoseconds(seconds: seconds))
                 }) {
         self.layout = layout; self.files = files; self.now = now; self.sleep = sleep
     }
@@ -189,4 +188,14 @@ public final class AgentSessionMetadataIndexStore<Index: AgentSessionIndexDocume
         scheduled[key]?.task.cancel(); scheduled.removeValue(forKey: key); reconciled.remove(key)
     }
     @_spi(Testing) public func markReconciledForTesting(folder: URL) { reconciled.insert(folder.standardizedFileURL) }
+}
+
+/// Converts a caller-configured interval to a sleep length that cannot trap:
+/// non-positive and NaN become 0, and anything longer than 1e9 s (about 31.7
+/// years, including infinity) is clamped. `UInt64(seconds * 1e9)` traps on
+/// negative, NaN, infinite or very large values.
+@usableFromInline func sessionIndexSleepNanoseconds(seconds: TimeInterval) -> UInt64 {
+    guard seconds > 0 else { return 0 }
+    guard seconds < 1_000_000_000 else { return 1_000_000_000 * 1_000_000_000 }
+    return UInt64(seconds * 1_000_000_000)
 }

@@ -196,6 +196,17 @@ final class AgentSessionStorageTests: XCTestCase {
         await s.performReconciliation(token, loadRecord: { _, _, _ in self.row() })
         XCTAssertFalse(s.isReconciliationScheduled(folder: folder))
     }
+    func testDefaultSleepToleratesAnInfiniteReconciliationDelay() async throws {
+        let fs = MemoryFiles()
+        let s = Store(layout: layout, files: fs.io, now: { Date(timeIntervalSince1970: 100) })
+        let delivered = AsyncStream<Store.ReconciliationToken>.makeStream()
+        XCTAssertTrue(s.scheduleReconciliation(folder: folder, delaySeconds: .infinity) { delivered.continuation.yield($0) }.scheduled)
+        var iterator = delivered.stream.makeAsyncIterator(); let value = await iterator.next(); let token = try XCTUnwrap(value)
+        let task = Task { await s.performReconciliation(token, loadRecord: { _, _, _ in XCTFail("an infinite delay elapsed"); return self.row() }) }
+        try await Task.sleep(for: .milliseconds(100))
+        task.cancel(); await task.value
+        XCTAssertFalse(s.isReconciliationScheduled(folder: folder))
+    }
     func testForeignReconciliationTokenCannotReadOrWriteAnotherOwnersRoot() async throws {
         let fs = MemoryFiles(); let a = store(fs), b = store(fs); let delivered = AsyncStream<Store.ReconciliationToken>.makeStream()
         a.scheduleReconciliation(folder: folder, delaySeconds: 0) { delivered.continuation.yield($0) }

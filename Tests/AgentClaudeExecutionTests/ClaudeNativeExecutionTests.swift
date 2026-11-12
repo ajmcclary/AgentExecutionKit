@@ -261,6 +261,20 @@ final class ClaudeNativeExecutionTests: XCTestCase {
 		XCTAssertEqual(order, ["fallback", "completion"]); XCTAssertEqual(e.completions.count, 1)
 		XCTAssertFalse(e.hasDeferredOutcomes)
 	}
+	func testDefaultIdleSleepToleratesNonFiniteAndNegativeIntervals() async throws {
+		for seconds in [-1, TimeInterval.nan] {
+			let e = engine(); try deferResult(e)
+			let delivery = AsyncStream<ClaudeNativeExecution.IdleFallbackToken>.makeStream()
+			e.reconcileIdleFallback(seconds: seconds) { delivery.continuation.yield($0) }
+			var iterator = delivery.stream.makeAsyncIterator(); let value = await iterator.next()
+			XCTAssertNotNil(value, "a non-positive interval fires promptly")
+			e.cancelIdleFallback()
+		}
+		let e = engine(); try deferResult(e)
+		e.reconcileIdleFallback(seconds: .infinity) { _ in XCTFail("an infinite interval elapsed") }
+		try await Task.sleep(for: .milliseconds(100))
+		e.cancelIdleFallback()
+	}
 	func testCancelledQueuedTimerCannotCompleteRescheduledTurn() async throws {
 		let e = timedEngine(); try deferResult(e)
 		let delivery = AsyncStream<ClaudeNativeExecution.IdleFallbackToken>.makeStream()
