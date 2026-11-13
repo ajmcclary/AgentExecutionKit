@@ -18,7 +18,7 @@ public struct AgentTranscriptReadback {
 		for turn in transcript.turns {
 			if let request = turn.request {
 				let rendered = renderUserMessage?(request) ?? request.text
-				lines.append("<user>\(rendered)</user>")
+				lines.append("<user>\(AgentTranscriptMarkup.neutralizedBody(rendered))</user>")
 			}
 			for activity in renderRows(turn, true) {
 				if suppressRow(activity) {
@@ -28,11 +28,11 @@ public struct AgentTranscriptReadback {
 				case .assistant, .assistantInline:
 					if AgentDisplayableText.hasDisplayableBody(activity.text) {
 						let trimmed = activity.text.trimmingCharacters(in: .whitespacesAndNewlines)
-						lines.append("<assistant>\(trimmed)</assistant>")
+						lines.append("<assistant>\(AgentTranscriptMarkup.neutralizedBody(trimmed))</assistant>")
 					}
 				case .toolCall:
-					if let toolName = visibleToolName(activity.toolName) {
-						let args = activity.toolArgsJSON ?? ""
+					if let toolName = visibleToolName(activity.toolName).map(AgentTranscriptMarkup.escapedAttribute) {
+						let args = AgentTranscriptMarkup.neutralizedBody(activity.toolArgsJSON ?? "")
 						if args.isEmpty {
 							lines.append("<tool_call name=\"\(toolName)\"/>")
 						} else {
@@ -40,13 +40,13 @@ public struct AgentTranscriptReadback {
 						}
 					}
 				case .toolResult:
-					if let toolName = visibleToolName(activity.toolName) {
+					if let toolName = visibleToolName(activity.toolName).map(AgentTranscriptMarkup.escapedAttribute) {
 						lines.append("<tool_result name=\"\(toolName)\"/>")
 					}
 				case .system:
-					lines.append("<system>\(activity.text)</system>")
+					lines.append("<system>\(AgentTranscriptMarkup.neutralizedBody(activity.text))</system>")
 				case .error:
-					lines.append("<error>\(activity.text)</error>")
+					lines.append("<error>\(AgentTranscriptMarkup.neutralizedBody(activity.text))</error>")
 				case .user, .thinking:
 					break
 				}

@@ -96,10 +96,10 @@ public struct AgentTranscriptExportService {
 					guard !suppressRow(row),
 						let toolName = visibleToolName(row.toolName) else { continue }
 					let args = Self.truncateArgs(row.toolArgsJSON, max: maxToolArgsCharacters)
-					let name = Self.escapedAttribute(toolName)
+					let name = AgentTranscriptMarkup.escapedAttribute(toolName)
 					let xml = args.isEmpty
 						? "<tool_call name=\"\(name)\"/>"
-						: "<tool_call name=\"\(name)\">\(Self.neutralizedBody(args))</tool_call>"
+						: "<tool_call name=\"\(name)\">\(AgentTranscriptMarkup.neutralizedBody(args))</tool_call>"
 					forkItems.append(ForkItem(pos: pos, payload: .rawXML(xml), dropPriority: .toolCall, turnID: tid))
 					pos += 1
 				case .toolResult, .thinking:
@@ -217,7 +217,7 @@ public struct AgentTranscriptExportService {
 		for output in outputs {
 			switch output {
 			case let .tagged(tag, text):
-				lines.append("<\(tag)>\(Self.neutralizedBody(text))</\(tag)>")
+				lines.append("<\(tag)>\(AgentTranscriptMarkup.neutralizedBody(text))</\(tag)>")
 			case let .rawXML(xml):
 				lines.append(xml)
 			}
@@ -370,27 +370,6 @@ public struct AgentTranscriptExportService {
 		}
 		let endIndex = text.index(text.startIndex, offsetBy: 220)
 		return String(text[..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
-	}
-
-	/// The transcript's own structural tag names.
-	private static let structuralTagPattern = try! NSRegularExpression(
-		pattern: #"<(/?)(transcript|user|assistant|system|error|tool_call|note)(?=[\s/>])"#,
-		options: [.caseInsensitive])
-
-	/// Leaves body text unescaped except where it would open or close a
-	/// structural tag; there the `<` becomes `&lt;`.
-	static func neutralizedBody(_ text: String) -> String {
-		guard text.contains("<") else { return text }
-		let range = NSRange(text.startIndex..<text.endIndex, in: text)
-		return structuralTagPattern.stringByReplacingMatches(in: text, range: range, withTemplate: "&lt;$1$2")
-	}
-
-	/// Escapes a value placed inside a double-quoted attribute.
-	static func escapedAttribute(_ value: String) -> String {
-		value.replacingOccurrences(of: "&", with: "&amp;")
-			.replacingOccurrences(of: "\"", with: "&quot;")
-			.replacingOccurrences(of: "<", with: "&lt;")
-			.replacingOccurrences(of: ">", with: "&gt;")
 	}
 
 	private static func truncateArgs(_ rawArgs: String?, max limit: Int) -> String {
