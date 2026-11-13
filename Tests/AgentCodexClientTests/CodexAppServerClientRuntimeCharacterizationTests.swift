@@ -210,6 +210,36 @@ final class CodexAppServerClientRuntimeCharacterizationTests: XCTestCase {
 		await client.stop()
 	}
 
+	// MARK: - Model list pagination
+
+	/// A server that alternates between two cursors would page forever; the
+	/// client must stop at the first cursor it has already followed.
+	func testModelListStopsWhenTheServerRepeatsAnEarlierCursor() async throws {
+		final class Responder: @unchecked Sendable {
+			let lock = NSLock()
+			var client: CodexAppServerClient?
+			var pages = 0
+			func respond(to frame: Data) {
+				guard let object = (try? JSONSerialization.jsonObject(with: frame)) as? [String: Any],
+					  object["method"] as? String == "model/list", let id = object["id"] else { return }
+				let page: Int = lock.withLock { pages += 1; return pages }
+				// Alternate A, B, A, B, ...; give up after 50 pages so a regression terminates.
+				let next: String = page >= 50 ? "null" : (page % 2 == 1 ? "\"A\"" : "\"B\"")
+				let line = Data(#"{"id":\#(id),"result":{"data":[{"id":"m\#(page)"}],"nextCursor":\#(next)}}"#.utf8)
+				let client = lock.withLock { self.client }
+				Task { await client?.debugIngestRawStdoutLine(line) }
+			}
+		}
+		let responder = Responder()
+		let client = CodexAppServerClient(writeFrameHandler: { _, frame in responder.respond(to: frame) },
+										  livenessProbe: { _ in true })
+		responder.lock.withLock { responder.client = client }
+		await client.debugInstallTestTransport()
+		let models = try await client.listModels(limit: 10)
+		XCTAssertEqual(responder.lock.withLock { responder.pages }, 3, "pages: nil, A, B; A again is a cycle")
+		XCTAssertEqual(models.map(\.id), ["m1", "m2", "m3"])
+	}
+
 	// MARK: - Continuation single-resume
 
 	func testResponseForSameRequestIDResolvesExactlyOnce() async throws {

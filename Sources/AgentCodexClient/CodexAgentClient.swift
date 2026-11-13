@@ -721,10 +721,13 @@ public actor CodexAgentClient {
 		try await startIfNeeded()
 
 		var cursor: String?
+		var seenCursors = Set<String>()
 		var seenModelIDs = Set<String>()
 		var models: [RemoteModel] = []
 
-		while true {
+		// A server that cycles cursors (A, B, A, ...) or never ends must not hold
+		// this loop forever: stop at a repeated cursor or after maxModelListPages.
+		for _ in 0..<Self.maxModelListPages {
 			let params = try CodexClientCodableBridge.dictionary(from: CodexModelListParams(limit: pageLimit, cursor: cursor))
 
 			let result = try await request(method: "model/list", params: params)
@@ -777,7 +780,7 @@ public actor CodexAgentClient {
 			}
 
 			let nextCursor = page.nextCursor
-			guard let nextCursor, !nextCursor.isEmpty, nextCursor != cursor else {
+			guard let nextCursor, !nextCursor.isEmpty, seenCursors.insert(nextCursor).inserted else {
 				break
 			}
 			cursor = nextCursor
@@ -785,6 +788,9 @@ public actor CodexAgentClient {
 
 		return models
 	}
+
+	/// Upper bound on `model/list` pages followed by one `listModels` call.
+	static let maxModelListPages = 100
 
 	/// Stable client capabilities, kept strictly separate from experimental
 	/// admission. Empty today; anything added here must be a STABLE
