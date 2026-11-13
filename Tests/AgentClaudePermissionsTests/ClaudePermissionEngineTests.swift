@@ -47,6 +47,21 @@ final class ClaudePermissionEngineTests: XCTestCase {
 		}
 		XCTAssertNil(try ClaudePermissionEngine.response(.accept, request: object).dictionary()["updatedPermissions"])
 	}
+	func testSessionAcceptScopesPersistentSuggestionsToTheSession() throws {
+		let object = try ClaudeProtocolJSONObject(object: ["input": ["command": "npm test"], "permission_suggestions": [
+			["type": "addRules", "rules": [["toolName": "Bash", "ruleContent": "npm test:*"]], "behavior": "allow", "destination": "localSettings"],
+			["type": "addRules", "rules": [["toolName": "Bash"]], "behavior": "allow", "destination": "projectSettings"],
+			["type": "addDirectories", "directories": ["/tmp"], "destination": "userSettings"],
+			["type": "setMode", "mode": "acceptEdits", "destination": "session"],
+			["type": "addRules", "rules": [], "behavior": "allow"]]])
+		for decision in [AgentApprovalDecision.acceptForSession, .acceptWithExecpolicyAmendment("ignored legacy amendment")] {
+			let suggestions = try XCTUnwrap(try ClaudePermissionEngine.response(decision, request: object).dictionary()["updatedPermissions"] as? [[String: Any]])
+			XCTAssertEqual(suggestions.count, 5)
+			XCTAssertEqual(suggestions.map { $0["destination"] as? String }, Array(repeating: "session", count: 5),
+						   "a button the user reads as session-scoped must not write settings files")
+			XCTAssertEqual((suggestions.first?["rules"] as? [[String: Any]])?.first?["ruleContent"] as? String, "npm test:*")
+		}
+	}
 	func testDeclineAndCancelKeepExactWireWordingAndInterruptDifference() throws {
 		let object = try ClaudeProtocolJSONObject(object: [:])
 		let decline = try ClaudePermissionEngine.response(.decline, request: object).dictionary()

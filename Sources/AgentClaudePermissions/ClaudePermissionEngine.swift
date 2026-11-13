@@ -110,7 +110,14 @@ public final class ClaudePermissionEngine {
 		let input = try request.dictionary()
 		var payload: [String: Any] = ["behavior": "allow", "updatedInput": input["input"] as? [String: Any] ?? [:]]
 		if includeUpdatedPermissions, let suggestions = input["permission_suggestions"] as? [[String: Any]], !suggestions.isEmpty {
-			payload["updatedPermissions"] = suggestions
+			// The decision is "accept for this session". The CLI's suggestions may
+			// target localSettings/projectSettings/userSettings, which would persist
+			// the rule beyond the session, so every suggestion is scoped to it.
+			payload["updatedPermissions"] = suggestions.map { suggestion in
+				var scoped = suggestion
+				scoped["destination"] = "session"
+				return scoped
+			}
 		}
 		if let id = (input["tool_use_id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
 			payload["toolUseID"] = id
