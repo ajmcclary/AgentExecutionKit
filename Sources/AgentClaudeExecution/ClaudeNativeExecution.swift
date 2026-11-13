@@ -229,10 +229,12 @@ public final class ClaudeNativeExecution {
 }
 
 /// Converts a caller-configured interval to a sleep length that cannot trap:
-/// non-positive and NaN become 0, and anything longer than 1e9 s (about 31.7
-/// years, including infinity) is clamped. `UInt64(seconds * 1e9)` traps on
+/// non-positive values become 0, and anything longer than 1e9 s (about 31.7
+/// years) is clamped. NaN and infinity both mean "no deadline" and get the
+/// clamp, matching CodexRPCRequestStore's timeout semantics. `UInt64(seconds * 1e9)` traps on
 /// negative, NaN, infinite or very large values.
 @usableFromInline func claudeIdleSleepNanoseconds(seconds: TimeInterval) -> UInt64 {
+	guard !seconds.isNaN else { return 1_000_000_000 * 1_000_000_000 }
 	guard seconds > 0 else { return 0 }
 	guard seconds < 1_000_000_000 else { return 1_000_000_000 * 1_000_000_000 }
 	return UInt64(seconds * 1_000_000_000)
