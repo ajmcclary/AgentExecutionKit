@@ -17,14 +17,22 @@ extension ClaudeCredentialRedactor {
 		let nsText = text as NSString
 		var result = ""
 		var cursor = 0
-		for match in regex.matches(in: text, range: NSRange(location: 0, length: nsText.length)) {
+		var searchFrom = 0
+		while searchFrom < nsText.length,
+			  let match = regex.firstMatch(in: text, range: NSRange(location: searchFrom, length: nsText.length - searchFrom)) {
 			let name = nsText.substring(with: match.range(at: 1))
-			guard ClaudeLaunchEnvironmentSanitizer.conflictingKeys.contains(name)
-					|| ClaudeRedactedEnvironmentSnapshot.isSecretBearing(name) else { continue }
 			let value = match.range(at: 2)
+			guard ClaudeLaunchEnvironmentSanitizer.conflictingKeys.contains(name)
+					|| ClaudeRedactedEnvironmentSnapshot.isSecretBearing(name) else {
+				// Not secret: rescan inside its value, which may itself carry an
+				// assignment (`env=ANTHROPIC_API_KEY=…`, `CMD="KEY=… cmd"`).
+				searchFrom = value.location > match.range.location ? value.location : match.range.location + 1
+				continue
+			}
 			result += nsText.substring(with: NSRange(location: cursor, length: value.location - cursor))
 			result += placeholder
 			cursor = value.location + value.length
+			searchFrom = max(cursor, value.location + 1)
 		}
 		result += nsText.substring(from: cursor)
 		return result

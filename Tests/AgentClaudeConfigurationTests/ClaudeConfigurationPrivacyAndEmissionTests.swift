@@ -44,6 +44,20 @@ final class ClaudeConfigurationPrivacyAndEmissionTests: XCTestCase {
             + "MAX_THINKING_TOKENS=1024 PATH=/bin")
         for secret in ["aws-x", "sess", "abc", "def", "gh tok"] { XCTAssertFalse(text.contains(secret), secret) }
     }
+    func testAuthenticationValueScrubFindsAssignmentsNestedInsideAnotherValue() {
+        let cases = [
+            ("env=ANTHROPIC_API_KEY=sk-1", "env=ANTHROPIC_API_KEY=<redacted>"),
+            ("CMD=\"ANTHROPIC_API_KEY=sk-2 claude\"", "CMD=\"ANTHROPIC_API_KEY=<redacted> claude\""),
+            ("args=[ANTHROPIC_AUTH_TOKEN=sk-3]", "args=[ANTHROPIC_AUTH_TOKEN=<redacted>"),
+            ("--env=ANTHROPIC_API_KEY=sk-4", "--env=ANTHROPIC_API_KEY=<redacted>"),
+            ("PATH=/bin:/usr/bin HOME=/h", "PATH=/bin:/usr/bin HOME=/h"),
+        ]
+        for (input, expected) in cases {
+            let text = ClaudeCredentialRedactor.redactAuthenticationValues(in: input)
+            XCTAssertEqual(text, expected, input)
+            for secret in ["sk-1", "sk-2", "sk-3", "sk-4"] { XCTAssertFalse(text.contains(secret), input) }
+        }
+    }
     func testSnapshotSecretPredicateCoversTheStructuralRedactorsNames() {
         for key in ["set-cookie", "passphrase", "ssh_passphrase", "client_credential"] {
             XCTAssertTrue(ClaudeRedactedEnvironmentSnapshot.isSecretBearing(key), key)
