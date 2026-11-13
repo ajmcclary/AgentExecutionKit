@@ -93,7 +93,12 @@ public actor GeminiHeadlessClient: HeadlessAgentProviding {
             let values: [GeminiHeadlessEvent]
             do { values = try parser.parseStreamEvents(line) }
             catch let error as GeminiHeadlessParserError { throw error }
-            catch { throw GeminiHeadlessParserError.runtime(error.localizedDescription) }
+            catch {
+                // A banner or warning on stdout is not a protocol failure: skip the
+                // undecodable line (as the Claude and Codex clients do) and keep the run.
+                host.diagnostics("[GeminiAgent] Skipped non-JSON stdout line (\(line.count) bytes)")
+                return
+            }
             for event in values {
                 let result = event.streamResult
                 guard !completed else { break }

@@ -76,6 +76,18 @@ final class GeminiHeadlessClientTests: XCTestCase {
         let values = try await collect(client(host))
         XCTAssertEqual(values.map(\.type), ["message_stop"])
     }
+    func testNonJSONStdoutLinesAreSkippedInsteadOfEndingTheRun() async throws {
+        let host = Host([Execution([out("Loaded cached credentials.\n"), out("[WARN] something odd {\n"),
+                                    out(#"{"type":"message","role":"assistant","content":"kept"}"# + "\n"),
+                                    out(#"{"type":"result","status":"success"}"# + "\n")])])
+        let values = try await collect(client(host))
+        XCTAssertEqual(values.map(\.type), ["content", "message_stop"])
+        XCTAssertEqual(values.first?.text, "kept")
+    }
+    func testResultErrorStillFailsTheRun() async {
+        let host = Host([Execution([out("banner\n"), out(#"{"type":"result","status":"error","error":{"message":"quota"}}"# + "\n")])])
+        do { _ = try await collect(client(host)); XCTFail("Expected error") } catch { XCTAssertEqual(error.localizedDescription, "quota") }
+    }
     func testCleanExitWithTrailingContentAddsOneCompletion() async throws {
         let host = Host([Execution([out(#"{"type":"message","role":"assistant","content":"tail"}"#), .terminated(status: 0, timedOut: false)])])
         let values = try await collect(client(host)); XCTAssertEqual(values.map(\.type), ["content", "message_stop"])
