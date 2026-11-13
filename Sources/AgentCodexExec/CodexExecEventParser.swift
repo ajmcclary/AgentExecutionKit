@@ -4,6 +4,9 @@ import ProcessStreamFraming
 
 public struct CodexExecEventParser: Sendable {
 	private var codexItemInvocationIDs: [String: UUID] = [:]
+	/// Running totals from the `{"id","msg"}` dialect's `token_count`, carried
+	/// onto the `message_stop` that `task_complete` produces.
+	private var legacyTotalUsage: (prompt: Int?, completion: Int?)?
 	private let policy: CodexExecToolPolicy
 	public init(policy: CodexExecToolPolicy) { self.policy = policy }
 	public mutating func parseJSONLEvent(_ data: Data) -> AIStreamResult? {
@@ -296,14 +299,16 @@ public struct CodexExecEventParser: Sendable {
 			return nil
 
 		case "token_count":
-			// Newer format for usage info
+			// Usage info. This dialect emits it after EACH model response, not once
+			// per run, so it is a usage update, never the end of the run.
 			if let info = msg["info"] as? [String: Any],
 			   let totalUsage = info["total_token_usage"] as? [String: Any] {
 				let promptTokens = totalUsage["input_tokens"] as? Int
 				let completionTokens = totalUsage["output_tokens"] as? Int
+				legacyTotalUsage = (promptTokens, completionTokens)
 				// Cost is not in the newer format, set to nil
 				return AIStreamResult(
-					type: "message_stop",
+					type: "usage",
 					text: nil,
 					reasoning: nil,
 					promptTokens: promptTokens,
@@ -312,6 +317,17 @@ public struct CodexExecEventParser: Sendable {
 				)
 			}
 			return nil
+
+		case "task_complete":
+			// The run's end in this dialect; it carries the latest usage totals.
+			return AIStreamResult(
+				type: "message_stop",
+				text: nil,
+				reasoning: nil,
+				promptTokens: legacyTotalUsage?.prompt,
+				completionTokens: legacyTotalUsage?.completion,
+				cost: nil
+			)
 
 		default:
 			return nil

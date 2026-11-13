@@ -69,6 +69,20 @@ final class CodexExecClientTests: XCTestCase {
 		let input = await execution.input; XCTAssertEqual(input, "system\n\nuser")
 		let cleaned = await host.cleaned; XCTAssertEqual(cleaned.count, 1)
 	}
+	func testLegacyTokenCountIsUsageAndTheRunEndsOnTaskComplete() async throws {
+		func usage(_ input: Int, _ output: Int) -> String {
+			#"{"id":"1","msg":{"type":"token_count","info":{"total_token_usage":{"input_tokens":\#(input),"output_tokens":\#(output)}}}}"# + "\n"
+		}
+		let host = Host([Execution([
+			out(#"{"id":"1","msg":{"type":"agent_message","message":"step one"}}"# + "\n"), out(usage(10, 2)),
+			out(#"{"id":"1","msg":{"type":"agent_message","message":"step two"}}"# + "\n"), out(usage(25, 6)),
+			out(#"{"id":"1","msg":{"type":"task_complete","last_agent_message":"step two"}}"# + "\n"),
+			out(#"{"id":"1","msg":{"type":"agent_message","message":"after completion"}}"# + "\n")])])
+		let values = try await collect(client(host))
+		XCTAssertEqual(values.map(\.type), ["content", "usage", "content", "usage", "message_stop"])
+		XCTAssertEqual(values.compactMap(\.text), ["step one", "step two"])
+		XCTAssertEqual(values.last?.promptTokens, 25); XCTAssertEqual(values.last?.completionTokens, 6)
+	}
 	func testTrailingContentAndCleanExitInjectExactlyOneStop() async throws {
 		let host = Host([Execution([out(#"{"id":"0","msg":{"type":"agent_message","message":"hello"}}"#), .terminated(status: 0, timedOut: false)])])
 		let values = try await collect(client(host))
