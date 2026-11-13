@@ -94,10 +94,7 @@ enum ClaudeRawProtocolCodec {
 		do {
 			return try decodeObject(from: data)
 		} catch {
-			guard let text = String(data: data, encoding: .utf8),
-				let sanitized = sanitizeJSONControlCharactersInStrings(in: text),
-				let sanitizedData = sanitized.data(using: .utf8)
-			else {
+			guard let sanitizedData = sanitizeJSONControlCharactersInStrings(in: data) else {
 				throw CodecError.invalidJSON
 			}
 			do {
@@ -108,45 +105,47 @@ enum ClaudeRawProtocolCodec {
 		}
 	}
 
-	private static func sanitizeJSONControlCharactersInStrings(in raw: String) -> String? {
+	/// Escapes raw control bytes (< 0x20) that appear inside JSON strings.
+	///
+	/// Works on UTF-8 BYTES: a `Character` scan sees "\r\n" as one grapheme and a
+	/// quote followed by a combining mark as a non-quote, so it missed both. The
+	/// shared `repairJSONStringControlCharacters` is byte-wise too but only runs
+	/// when the line contains LF or CR, so it cannot replace this for a line whose
+	/// only control byte is, say, a tab. Returns nil when nothing was escaped.
+	private static func sanitizeJSONControlCharactersInStrings(in raw: Data) -> Data? {
 		guard !raw.isEmpty else { return nil }
-		var output = String()
+		var output = Data()
 		output.reserveCapacity(raw.count + 8)
 		var inString = false
 		var isEscaping = false
 		var didSanitize = false
 
-		for character in raw {
-			if inString {
-				if isEscaping {
-					output.append(character)
-					isEscaping = false
-					continue
-				}
-				switch character {
-				case "\\":
-					output.append(character)
-					isEscaping = true
-				case "\"":
-					output.append(character)
-					inString = false
-				case "\n":
-					output.append("\\n")
-					didSanitize = true
-				case "\r":
-					output.append("\\r")
-					didSanitize = true
-				case "\t":
-					output.append("\\t")
-					didSanitize = true
-				default:
-					output.append(character)
-				}
-			} else {
-				output.append(character)
-				if character == "\"" {
-					inString = true
-				}
+		for byte in raw {
+			guard inString else {
+				output.append(byte)
+				if byte == 0x22 { inString = true }
+				continue
+			}
+			if isEscaping {
+				output.append(byte)
+				isEscaping = false
+				continue
+			}
+			switch byte {
+			case 0x5C:
+				output.append(byte)
+				isEscaping = true
+			case 0x22:
+				output.append(byte)
+				inString = false
+			case 0x0A: output.append(contentsOf: [0x5C, 0x6E]); didSanitize = true
+			case 0x0D: output.append(contentsOf: [0x5C, 0x72]); didSanitize = true
+			case 0x09: output.append(contentsOf: [0x5C, 0x74]); didSanitize = true
+			case 0x00..<0x20:
+				output.append(contentsOf: String(format: "\\u%04X", byte).utf8)
+				didSanitize = true
+			default:
+				output.append(byte)
 			}
 		}
 

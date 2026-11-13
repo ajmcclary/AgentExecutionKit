@@ -34,6 +34,19 @@ final class ClaudeNativeProtocolTests: XCTestCase {
 		XCTAssertEqual(batch.results.first?.completionTokens, 2, "in-range sibling counts survive")
 		XCTAssertEqual(batch.results.first?.contextUsedTokens, 1, "the out-of-range count is unknown, not clamped")
 	}
+	func testRawControlCharactersInsideStringsAreRepairedBytewise() throws {
+		func text(_ line: String) throws -> String? {
+			guard case .streamPayload(let payload)? = try ClaudeNativeProtocolCodec.decodeLine(Data(line.utf8)) else { return nil }
+			return try payload.dictionary()["text"] as? String
+		}
+		// CRLF is one grapheme; a Character-wise scan never sees "\r" or "\n".
+		XCTAssertEqual(try text("{\"type\":\"x\",\"text\":\"a\r\nb\"}"), "a\r\nb")
+		// A combining mark after the opening quote hides the quote from a Character scan.
+		XCTAssertEqual(try text("{\"type\":\"x\",\"text\":\"\u{301}a\nb\"}"), "\u{301}a\nb")
+		XCTAssertEqual(try text("{\"type\":\"x\",\"text\":\"a\tb\"}"), "a\tb")
+		XCTAssertEqual(try text("{\"type\":\"x\",\"text\":\"a\u{1}b\"}"), "a\u{1}b")
+		XCTAssertThrowsError(try ClaudeNativeProtocolCodec.decodeLine(Data("{\"type\":\n\"x\"".utf8)))
+	}
 	func testTypedControlRequestRetainsLargeNumbersAndUnknownFieldsAcrossTasks() async throws {
 		let line = Data(#"{"type":"control_request","request_id":"r","request":{"subtype":"future","number":9007199254740993,"unknown":{"flag":true}}}"#.utf8)
 		let value = try XCTUnwrap(ClaudeNativeProtocolCodec.decodeLine(line))
