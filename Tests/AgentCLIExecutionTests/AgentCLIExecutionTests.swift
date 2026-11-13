@@ -139,6 +139,21 @@ final class AgentCLIExecutionTests: XCTestCase {
 		XCTAssertEqual(result.status, 0)
 	}
 
+	func testDescendantHoldingStdinDoesNotWedgeTheRunnerAfterTheChildExits() async throws {
+		let cli = runner()
+		// The child leaves a descendant holding the stdin read end without reading
+		// it, prints the descendant's pid, and exits; the prompt exceeds the pipe buffer.
+		let script = "/bin/sleep 30 <&0 >/dev/null 2>&1 & echo $!; exit 0"
+		let run = Task { try await cli.run(args: ["-c", script], stdin: String(repeating: "x", count: 1_000_000), outputMode: .none, timeout: 5) }
+		let watchdog = Task { try await Task.sleep(for: .seconds(15)); run.cancel() }
+		let result = try await run.value
+		watchdog.cancel()
+		XCTAssertEqual(result.status, 0)
+		if let pid = Int32(String(decoding: result.stdout, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)) { kill(pid, SIGKILL) }
+		let next = try await cli.run(args: ["-c", "printf next"], stdin: nil, outputMode: .none, timeout: 2)
+		XCTAssertEqual(String(decoding: next.stdout, as: UTF8.self), "next", "the runner's permit was released")
+	}
+
 	func testStreamTailLoggingIsBoundedAndInputSamplingRemainsOptIn() async throws {
 		let logs = Logs()
 		var config = AgentCLIConfiguration(command: "/bin/sh", workingDirectory: "/tmp", additionalPaths: [], logCollector: logs)

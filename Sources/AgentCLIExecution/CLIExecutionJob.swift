@@ -1,4 +1,6 @@
 import Foundation
+import Darwin
+import Synchronization
 import ProcessKit
 import ProcessStreamFraming
 
@@ -49,6 +51,7 @@ actor CLIExecutionJob {
 		waiter = waitTask
 		if cancelled { waitTask.cancel() }
 		var inputTask: Task<Void, Never>?
+		let stopInput = InputStop()
 		var reaped = false
 		do {
 			try stdoutReader.start(handle: process.stdout, label: "CLI stdout", preflight: host.readPreflight,
@@ -69,7 +72,9 @@ actor CLIExecutionJob {
 					let fd = input.fileDescriptor
 					_ = FDWriteSupport.configureNoSigPipe(fd: fd)
 					// A broken pipe/early exit stops input, matching the prior runner.
-					try? FDWriteSupport.writeAll(data, to: fd)
+					// So does the child being reaped: a descendant that inherited the
+					// read end must not hold the write (and this runner) forever.
+					Self.writeAll(data, to: fd, stop: stopInput)
 				}
 			} else { process.stdin?.closeFile() }
 			let result = try await waitTask.value
@@ -77,6 +82,7 @@ actor CLIExecutionJob {
 			// EOF callbacks follow every queued chunk; do not close readable FDs
 			// before the FIFO consumer has drained. Descendant-held pipes are bounded.
 			await drain()
+			stopInput.stop()
 			await inputTask?.value
 			closeOutput()
 			if !stdout.isEmpty { config.logCollector?.appendDataSection(title: "STDOUT", data: stdout) }
@@ -91,10 +97,48 @@ actor CLIExecutionJob {
 					_ = await ProcessTermination.terminateAndReap(pid: pid, policy: policy, logger: diagnostics)
 				}
 			}
+			stopInput.stop()
 			await inputTask?.value
 			if inputTask == nil { process.stdin?.closeFile() }
 			closeOutput()
 			throw error
+		}
+	}
+
+	/// Tells the stdin writer to give up once the child has been reaped.
+	final class InputStop: Sendable {
+		private let stopped = Mutex(false)
+		func stop() { stopped.withLock { $0 = true } }
+		var isStopped: Bool { stopped.withLock { $0 } }
+	}
+
+	/// Writes `data` to the child's stdin until it is all written, the pipe
+	/// breaks, or `stop` is raised. The descriptor is switched to non-blocking
+	/// and polled, so a reader that never drains the pipe cannot block the
+	/// writer past `stop`.
+	static func writeAll(_ data: Data, to fd: Int32, stop: InputStop) {
+		guard fd >= 0, !data.isEmpty else { return }
+		let flags = fcntl(fd, F_GETFL)
+		guard flags != -1, fcntl(fd, F_SETFL, flags | O_NONBLOCK) != -1 else {
+			try? FDWriteSupport.writeAll(data, to: fd)
+			return
+		}
+		data.withUnsafeBytes { raw in
+			guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+			var offset = 0
+			while offset < raw.count {
+				if stop.isStopped { return }
+				let written = Darwin.write(fd, base.advanced(by: offset), raw.count - offset)
+				if written > 0 { offset += written; continue }
+				if written == 0 { return }
+				switch errno {
+				case EINTR: continue
+				case EAGAIN:
+					var descriptor = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+					_ = poll(&descriptor, 1, 50)
+				default: return // EPIPE, EBADF, ...: input stops, as before
+				}
+			}
 		}
 	}
 
