@@ -2115,11 +2115,15 @@ public struct AgentTranscriptProjectionService {
 		case .full:
 			return
 		case .condensed, .summary:
+			// Span ids come from the persisted transcript, so a corrupt file can
+			// repeat one. A grouped-history block id derives from (turn, span), so
+			// duplicates carry the same id; keep the first.
 			let groupedHistoryBlockIDBySpan: [UUID: String] = Dictionary(
-				uniqueKeysWithValues: blocks.compactMap { block -> (UUID, String)? in
+				blocks.compactMap { block -> (UUID, String)? in
 					guard block.kind == .groupedHistory, let spanID = block.spanID else { return nil }
 					return (spanID, block.id)
-				}
+				},
+				uniquingKeysWith: { first, _ in first }
 			)
 			let firstGroupedHistoryBlockID = blocks.first(where: { $0.kind == .groupedHistory })?.id
 			let conclusionBlockID = blocks.first(where: { $0.kind == .conclusion })?.id

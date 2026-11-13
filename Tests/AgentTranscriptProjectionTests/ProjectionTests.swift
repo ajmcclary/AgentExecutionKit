@@ -81,4 +81,12 @@ final class ProjectionTests:XCTestCase {
         var count=0,metrics:[AgentTranscriptProjectionBuildMetrics]=[];var p=projectionPorts();p.clock={count+=1;return count==1 ? 10:5};p.diagnosticsEnabled={true};p.observeBuild={metrics.append($0)};_ = AgentTranscriptProjectionService(services:p).build(from:.empty);XCTAssertEqual(metrics[0].durationMS,0)
     }
 
+    func testCorruptTurnWithADuplicatedResponseSpanDoesNotTrap() {
+        for tier in [AgentTranscriptRetentionTier.condensed, .summary] {
+            var turn = projectionTurn(tools: 3, tier: tier)
+            turn.responseSpans.append(turn.responseSpans[0])
+            let projection = projectionService().build(from: .init(turns: [turn]))
+            XCTAssertFalse(projection.workingBlocks.isEmpty && projection.archivedBlocks.isEmpty)
+        }
+    }
 }
