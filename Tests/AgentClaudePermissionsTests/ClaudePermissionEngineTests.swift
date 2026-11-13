@@ -38,29 +38,40 @@ final class ClaudePermissionEngineTests: XCTestCase {
 	}
 	func testSessionAcceptIncludesSuggestionsExactlyAsAdvertised() throws {
 		let object = try ClaudeProtocolJSONObject(object: ["tool_use_id": "toolu_456", "input": ["path": "README.md"],
-			"permission_suggestions": [["type": "setMode", "mode": "acceptEdits", "destination": "session", "future": 9]]])
+			"permission_suggestions": [["type": "addRules", "rules": [["toolName": "Edit"]], "behavior": "allow", "destination": "session", "future": 9]]])
 		for decision in [AgentApprovalDecision.acceptForSession, .acceptWithExecpolicyAmendment("ignored legacy amendment")] {
 			let payload = try ClaudePermissionEngine.response(decision, request: object).dictionary()
 			let suggestions = try XCTUnwrap(payload["updatedPermissions"] as? [[String: Any]])
-			XCTAssertEqual(suggestions.count, 1); XCTAssertEqual(suggestions.first?["type"] as? String, "setMode")
+			XCTAssertEqual(suggestions.count, 1); XCTAssertEqual(suggestions.first?["type"] as? String, "addRules")
+			XCTAssertEqual(suggestions.first?["destination"] as? String, "session")
 			XCTAssertEqual(suggestions.first?["future"] as? Int, 9)
 		}
 		XCTAssertNil(try ClaudePermissionEngine.response(.accept, request: object).dictionary()["updatedPermissions"])
 	}
-	func testSessionAcceptScopesPersistentSuggestionsToTheSession() throws {
+	func testAlwaysAllowKeepsKnownDestinationsAndDropsModeChangesAndUnknownTargets() throws {
 		let object = try ClaudeProtocolJSONObject(object: ["input": ["command": "npm test"], "permission_suggestions": [
 			["type": "addRules", "rules": [["toolName": "Bash", "ruleContent": "npm test:*"]], "behavior": "allow", "destination": "localSettings"],
 			["type": "addRules", "rules": [["toolName": "Bash"]], "behavior": "allow", "destination": "projectSettings"],
 			["type": "addDirectories", "directories": ["/tmp"], "destination": "userSettings"],
+			["type": "addRules", "rules": [["toolName": "Read"]], "behavior": "allow", "destination": "session"],
 			["type": "setMode", "mode": "acceptEdits", "destination": "session"],
-			["type": "addRules", "rules": [], "behavior": "allow"]]])
+			["type": "setMode", "mode": "bypassPermissions", "destination": "localSettings"],
+			["type": "addRules", "rules": [["toolName": "Bash"]], "behavior": "allow", "destination": "cliArg"],
+			["type": "addRules", "rules": [["toolName": "Bash"]], "behavior": "allow", "destination": "policySettings"],
+			["type": "addRules", "rules": [["toolName": "Bash"]], "behavior": "allow"]]])
 		for decision in [AgentApprovalDecision.acceptForSession, .acceptWithExecpolicyAmendment("ignored legacy amendment")] {
 			let suggestions = try XCTUnwrap(try ClaudePermissionEngine.response(decision, request: object).dictionary()["updatedPermissions"] as? [[String: Any]])
-			XCTAssertEqual(suggestions.count, 5)
-			XCTAssertEqual(suggestions.map { $0["destination"] as? String }, Array(repeating: "session", count: 5),
-						   "a button the user reads as session-scoped must not write settings files")
+			// "Always Allow" persists where the CLI suggested; only the known
+			// destinations survive, verbatim, and a mode change never rides along.
+			XCTAssertEqual(suggestions.map { $0["destination"] as? String }, ["localSettings", "projectSettings", "userSettings", "session"])
+			XCTAssertEqual(suggestions.map { $0["type"] as? String }, ["addRules", "addRules", "addDirectories", "addRules"])
 			XCTAssertEqual((suggestions.first?["rules"] as? [[String: Any]])?.first?["ruleContent"] as? String, "npm test:*")
 		}
+	}
+	func testAlwaysAllowWithOnlyModeChangesSendsNoPermissionUpdates() throws {
+		let object = try ClaudeProtocolJSONObject(object: ["input": ["path": "a.swift"], "permission_suggestions": [
+			["type": "setMode", "mode": "acceptEdits", "destination": "session"]]])
+		XCTAssertNil(try ClaudePermissionEngine.response(.acceptForSession, request: object).dictionary()["updatedPermissions"])
 	}
 	func testDeclineAndCancelKeepExactWireWordingAndInterruptDifference() throws {
 		let object = try ClaudeProtocolJSONObject(object: [:])

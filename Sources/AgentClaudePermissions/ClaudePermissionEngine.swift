@@ -106,18 +106,23 @@ public final class ClaudePermissionEngine {
 		case .cancel: return try .init(object: ["behavior": "deny", "message": "Permission cancelled by user.", "interrupt": true])
 		}
 	}
+	/// Permission-update destinations echoed back to the CLI on "Always Allow".
+	public static let echoedPermissionDestinations: Set<String> = ["session", "localSettings", "projectSettings", "userSettings"]
+
 	public static func allowResponse(_ request: ClaudeProtocolJSONObject, includeUpdatedPermissions: Bool) throws -> ClaudeProtocolJSONObject {
 		let input = try request.dictionary()
 		var payload: [String: Any] = ["behavior": "allow", "updatedInput": input["input"] as? [String: Any] ?? [:]]
-		if includeUpdatedPermissions, let suggestions = input["permission_suggestions"] as? [[String: Any]], !suggestions.isEmpty {
-			// The decision is "accept for this session". The CLI's suggestions may
-			// target localSettings/projectSettings/userSettings, which would persist
-			// the rule beyond the session, so every suggestion is scoped to it.
-			payload["updatedPermissions"] = suggestions.map { suggestion in
-				var scoped = suggestion
-				scoped["destination"] = "session"
-				return scoped
+		if includeUpdatedPermissions, let suggestions = input["permission_suggestions"] as? [[String: Any]] {
+			// The app shows this decision as "Always Allow", so the CLI's own
+			// destinations are echoed (a localSettings rule persists, as Claude
+			// Code's "don't ask again" does). Only the known destinations pass, and
+			// a setMode suggestion is dropped: changing the permission mode is not
+			// what allowing one tool call means.
+			let allowed = suggestions.filter { suggestion in
+				(suggestion["type"] as? String) != "setMode"
+					&& (suggestion["destination"] as? String).map(Self.echoedPermissionDestinations.contains) == true
 			}
+			if !allowed.isEmpty { payload["updatedPermissions"] = allowed }
 		}
 		if let id = (input["tool_use_id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty {
 			payload["toolUseID"] = id
