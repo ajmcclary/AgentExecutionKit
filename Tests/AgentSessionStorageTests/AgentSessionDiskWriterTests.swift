@@ -45,15 +45,17 @@ final class AgentSessionDiskWriterTests: XCTestCase {
         try await writer.enqueueAndWait(data: Data("B".utf8), url: b)
         XCTAssertEqual(record.snapshot, ["A", "B"]); await gate.release(); try await first.value
     }
-    func testLastSuccessfulWriteClearsEarlierErrorForAllPendingWaiters() async throws {
+    func testEachWaiterReceivesTheResultOfTheWriteThatCarriedItsSnapshot() async throws {
         let gate = Gate(); let url = URL(fileURLWithPath: "/host/session.json")
         let writer = AgentSessionDiskWriter { data, _ in if String(decoding: data, as: UTF8.self) == "first" { await gate.wait(); throw Failure.first } }
         let first = Task { try await writer.enqueueAndWait(data: Data("first".utf8), url: url) }
         let entered = await gate.entered; var iterator = entered.stream.makeAsyncIterator(); _ = await iterator.next()
         let next = Task { try await writer.enqueueAndWait(data: Data("next".utf8), url: url) }
-        await waitFor(2, writer: writer, url: url); await gate.release(); try await first.value; try await next.value
+        await waitFor(2, writer: writer, url: url); await gate.release()
+        do { try await first.value; XCTFail("the first snapshot's own write failed") } catch { XCTAssertEqual(error as? Failure, .first) }
+        try await next.value
     }
-    func testLatestErrorReachesEveryPendingWaiterAndNextQueueCanRecover() async throws {
+    func testALaterFailureDoesNotReachAWaiterWhoseWriteSucceededAndNextQueueCanRecover() async throws {
         let gate = Gate(); let url = URL(fileURLWithPath: "/host/session.json")
         let writer = AgentSessionDiskWriter { data, _ in
             let text = String(decoding: data, as: UTF8.self)
@@ -63,8 +65,26 @@ final class AgentSessionDiskWriterTests: XCTestCase {
         let entered = await gate.entered; var iterator = entered.stream.makeAsyncIterator(); _ = await iterator.next()
         let next = Task { try await writer.enqueueAndWait(data: Data("latest".utf8), url: url) }
         await waitFor(2, writer: writer, url: url); await gate.release()
-        for task in [first, next] { do { try await task.value; XCTFail() } catch { XCTAssertEqual(error as? Failure, .latest) } }
+        try await first.value
+        do { try await next.value; XCTFail() } catch { XCTAssertEqual(error as? Failure, .latest) }
         try await writer.enqueueAndWait(data: Data("recovered".utf8), url: url)
+    }
+    func testAnEarlyWaiterIsNotStarvedByLaterSnapshots() async throws {
+        let firstGate = Gate(), secondGate = Gate(); let url = URL(fileURLWithPath: "/host/session.json"); let record = Recorder()
+        let writer = AgentSessionDiskWriter { data, _ in
+            let text = String(decoding: data, as: UTF8.self); record.add(text)
+            if text == "first" { await firstGate.wait() }
+            if text == "second" { await secondGate.wait() }
+        }
+        let first = Task { try await writer.enqueueAndWait(data: Data("first".utf8), url: url); record.add("first-returned") }
+        let entered = await firstGate.entered; var iterator = entered.stream.makeAsyncIterator(); _ = await iterator.next()
+        let second = Task { try await writer.enqueueAndWait(data: Data("second".utf8), url: url) }
+        await waitFor(2, writer: writer, url: url)
+        await firstGate.release()
+        // "second" is now in flight and blocked; the first caller's bytes are on disk.
+        for _ in 0..<2_000 where !record.snapshot.contains("first-returned") { try await Task.sleep(for: .milliseconds(1)) }
+        XCTAssertEqual(record.snapshot, ["first", "second", "first-returned"], "the first caller must not wait for the later write")
+        await secondGate.release(); try await first.value; try await second.value
     }
     func testCancelledCallerStillWaitsForDurabilityAndDoesNotCancelSharedWrite() async throws {
         let gate = Gate(); let url = URL(fileURLWithPath: "/host/session.json"); let record = Recorder()
