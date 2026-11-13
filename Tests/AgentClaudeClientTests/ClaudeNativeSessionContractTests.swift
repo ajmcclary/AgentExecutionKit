@@ -17,6 +17,13 @@ final class ClaudeNativeSessionContractTests: XCTestCase {
         XCTAssertEqual(args(" session\n"), prefix + ["--resume", " session\n"])
         XCTAssertFalse(args().contains("--model")); XCTAssertFalse(args().contains("--system-prompt"))
     }
+    func testResumeIdentifierThatWouldParseAsAFlagIsNotPassed() {
+        for hostile in ["--dangerously-skip-permissions", "-p", "-", "a\u{0}b"] {
+            XCTAssertEqual(args(hostile), prefix, hostile)
+        }
+        XCTAssertEqual(args(" -leading-space"), prefix + ["--resume", " -leading-space"], "only a leading '-' parses as a flag")
+        XCTAssertEqual(args("9f1c2d3e-0000-4000-8000-00000000abcd"), prefix + ["--resume", "9f1c2d3e-0000-4000-8000-00000000abcd"])
+    }
     func testPermissionBypassCaseAndWhitespaceMatchExistingContract() {
         XCTAssertEqual(args(mode: "BYPASSPERMISSIONS"), prefix + ["--allow-dangerously-skip-permissions"])
         for mode in ["plan", "auto", "default", "acceptEdits", " bypassPermissions "] { XCTAssertEqual(args(mode: mode), prefix) }

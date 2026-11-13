@@ -17,10 +17,15 @@ public enum ClaudeNativeSessionContract {
     }
     /// Model/effort are control settings, never native CLI arguments. Resume
     /// identifiers and disallowed-tool order retain the original raw values.
+    /// A resume identifier comes from the wire and is persisted, so one that the
+    /// CLI would parse as a flag (leading `-`) or that cannot travel in argv (NUL)
+    /// is treated as "no resume" rather than passed.
     public static func arguments(existingSessionID: String?, options: LaunchOptions) -> [String] {
         var args = ["-p", "--verbose", "--output-format", "stream-json", "--input-format", "stream-json",
                     "--permission-prompt-tool", "stdio"]
-        if let existingSessionID, !existingSessionID.isEmpty { args.append(contentsOf: ["--resume", existingSessionID]) }
+        if let existingSessionID, isPassableResumeIdentifier(existingSessionID) {
+            args.append(contentsOf: ["--resume", existingSessionID])
+        }
         let effectivePermissionMode = options.permissionMode
         if effectivePermissionMode.caseInsensitiveCompare("bypassPermissions") == .orderedSame {
             args.append("--allow-dangerously-skip-permissions")
@@ -33,6 +38,12 @@ public enum ClaudeNativeSessionContract {
             args.append(contentsOf: ["--disallowedTools", options.disallowedBuiltInTools.joined(separator: ",")])
         }
         return args
+    }
+    /// True when `id` can follow `--resume` as its value: non-empty, not starting
+    /// with `-` (which `--resume`, an optional-value option, would leave unconsumed
+    /// and the CLI would read as another flag), and free of NUL.
+    public static func isPassableResumeIdentifier(_ id: String) -> Bool {
+        !id.isEmpty && !id.hasPrefix("-") && !id.unicodeScalars.contains("\u{0}")
     }
     /// Base -> native defaults -> host configuration -> resolver -> scrub.
     /// Tool-search opt-in preserves the base instead of forcing a true value.
