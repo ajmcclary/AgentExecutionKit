@@ -53,13 +53,13 @@ let package = Package(
         .library(name: "AgentNativeProcessTransport", targets: ["AgentNativeProcessTransport"])
     ],
     dependencies: [
-        .package(url: "https://github.com/ajmcclary/ProcessKit.git", .upToNextMinor(from: "0.1.0-beta.5")),
-        .package(url: "https://github.com/ajmcclary/AgentRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.2")),
-        .package(url: "https://github.com/ajmcclary/CodexRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.4")),
-        .package(url: "https://github.com/ajmcclary/CodexAppServerKit.git", .upToNextMinor(from: "0.1.0-beta.4")),
-        .package(url: "https://github.com/ajmcclary/ClaudeRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.3")),
+        .package(url: "https://github.com/ajmcclary/ProcessKit.git", .upToNextMinor(from: "0.1.0-beta.6")),
+        .package(url: "https://github.com/ajmcclary/AgentRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.3")),
+        .package(url: "https://github.com/ajmcclary/CodexRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.5")),
+        .package(url: "https://github.com/ajmcclary/CodexAppServerKit.git", .upToNextMinor(from: "0.1.0-beta.5")),
+        .package(url: "https://github.com/ajmcclary/ClaudeRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.4")),
         .package(url: "https://github.com/ajmcclary/OpenCodeRuntimeKit.git", .upToNextMinor(from: "0.1.0-beta.4")),
-        .package(url: "https://github.com/ajmcclary/AIClientKit.git", .upToNextMinor(from: "0.1.0-beta.11"))
+        .package(url: "https://github.com/ajmcclary/AIClientKit.git", .upToNextMinor(from: "0.1.0-beta.12"))
     ],
     targets: [
         .target(name: "AgentSessionSidebar", dependencies: [.product(name: "AgentRuntimeKit", package: "AgentRuntimeKit")], swiftSettings: settings),
