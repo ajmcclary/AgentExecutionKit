@@ -1,9 +1,17 @@
 import Foundation
 
 public enum GeminiPromptDelivery {
-	public static func escapeSpecialCharacters(in text: String) -> String {
-		// Escape stray @ characters to avoid accidental @-command expansion,
-		// but preserve explicit file references (for image/file attachments).
+	/// Escapes every `@` (as `[at]`) so the Gemini CLI does not expand it as an
+	/// @-command or file reference, except where it introduces one of the exact
+	/// `references` the host attached. Path-shaped text the host did not attach
+	/// (`@/…`, `@~/…`, `@./…`, `@{…}`, `@C:…` pasted or quoted in the prompt) is
+	/// escaped too: the CLI would otherwise read that file and send it.
+	///
+	/// A reference is preserved only when the text after `@` is the reference
+	/// itself, followed by the end of the text or by whitespace or one of
+	/// `,;:)]}>"'` (so `@/a.png` does not also preserve `@/a.png.bak`).
+	public static func escapeSpecialCharacters(in text: String, preservingReferences references: Set<String> = []) -> String {
+		let candidates = references.filter { !$0.isEmpty }.sorted { $0.count > $1.count }
 		var result = ""
 		var index = text.startIndex
 		while index < text.endIndex {
@@ -13,56 +21,30 @@ public enum GeminiPromptDelivery {
 				index = text.index(after: index)
 				continue
 			}
-
-			let nextIndex = text.index(after: index)
-			let nextCharacter: Character? = nextIndex < text.endIndex ? text[nextIndex] : nil
-			if shouldPreserveAtReference(in: text, at: index, nextCharacter: nextCharacter) {
-				result.append(character)
+			let afterAt = text.index(after: index)
+			if let reference = candidates.first(where: { isReference($0, in: text, at: afterAt) }) {
+				result.append("@")
+				result.append(reference)
+				index = text.index(afterAt, offsetBy: reference.count)
 			} else {
 				result.append("[at]")
+				index = afterAt
 			}
-			index = text.index(after: index)
 		}
 		return result
 	}
 
-	private static func shouldPreserveAtReference(
-		in text: String,
-		at atIndex: String.Index,
-		nextCharacter: Character?
-	) -> Bool {
-		guard let nextCharacter else { return false }
-		if nextCharacter == "/" || nextCharacter == "~" || nextCharacter == "{" {
-			return true
-		}
-		if nextCharacter == "." {
-			let dotIndex = text.index(after: atIndex)
-			let afterDotIndex = text.index(after: dotIndex)
-			if afterDotIndex < text.endIndex, text[afterDotIndex] == "/" {
-				return true // @./path
-			}
-			if afterDotIndex < text.endIndex,
-			   text[afterDotIndex] == "." {
-				let afterDoubleDotIndex = text.index(after: afterDotIndex)
-				if afterDoubleDotIndex < text.endIndex,
-				   text[afterDoubleDotIndex] == "/" {
-					return true // @../path
-				}
-			}
-		}
-		// Preserve Windows-style absolute paths like @C:\foo or @C:/foo
-		if nextCharacter.isLetter {
-			let driveLetterIndex = text.index(after: atIndex)
-			let colonIndex = text.index(after: driveLetterIndex)
-			if colonIndex < text.endIndex,
-			   text[colonIndex] == ":" {
-				return true // @C:\path or @C:/path
-			}
-		}
-		return false
+	private static func isReference(_ reference: String, in text: String, at start: String.Index) -> Bool {
+		guard text[start...].hasPrefix(reference) else { return false }
+		let end = text.index(start, offsetBy: reference.count)
+		guard end < text.endIndex else { return true }
+		let next = text[end]
+		return next.isWhitespace || ",;:)]}>\"'".contains(next)
 	}
 
-	public static func combinedInput(systemPrompt: String, userMessage: String) -> String {
-		"\(systemPrompt)\n\n\(escapeSpecialCharacters(in: userMessage))"
+	/// Both channels go through the same escaping; only the host's declared
+	/// attachment paths survive as `@` references.
+	public static func combinedInput(systemPrompt: String, userMessage: String, attachmentPaths: Set<String> = []) -> String {
+		"\(escapeSpecialCharacters(in: systemPrompt, preservingReferences: attachmentPaths))\n\n\(escapeSpecialCharacters(in: userMessage, preservingReferences: attachmentPaths))"
 	}
 }

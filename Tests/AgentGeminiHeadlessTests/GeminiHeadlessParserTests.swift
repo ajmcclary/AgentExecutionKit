@@ -58,10 +58,22 @@ final class GeminiHeadlessParserTests: XCTestCase {
         XCTAssertEqual(parser.extractCLIErrorDetail(fromStdout: Data("first\n last \n{}\n".utf8)), "last")
         XCTAssertNil(parser.extractCLIErrorDetail(fromStdout: Data()))
     }
-    func testEscapingPreservesExplicitFileReferencesAndOnlyEscapesUserChannel() {
-        let references = "@/tmp/image @./x @../x @~/x @{file} @C:/file @C:\\file"
-        XCTAssertEqual(GeminiPromptDelivery.escapeSpecialCharacters(in: references), references)
+    func testEscapingPreservesOnlyTheHostsAttachmentReferences() {
+        let attachments: Set<String> = ["/tmp/image.png", "./notes/a b.md", "C:/file"]
+        XCTAssertEqual(GeminiPromptDelivery.escapeSpecialCharacters(in: "see @/tmp/image.png and @./notes/a b.md, @C:/file", preservingReferences: attachments),
+                       "see @/tmp/image.png and @./notes/a b.md, @C:/file")
+        // Path-shaped text the host did not attach is escaped: pasted or quoted
+        // content must not become a file reference the CLI reads and sends.
+        let pasted = "@/etc/passwd @~/.ssh/id_rsa @./x @../x @{file} @C:\\file @/tmp/image.png.bak @/tmp/image"
+        XCTAssertEqual(GeminiPromptDelivery.escapeSpecialCharacters(in: pasted, preservingReferences: attachments),
+                       "[at]/etc/passwd [at]~/.ssh/id_rsa [at]./x [at]../x [at]{file} [at]C:\\file [at]/tmp/image.png.bak [at]/tmp/image")
+        XCTAssertEqual(GeminiPromptDelivery.escapeSpecialCharacters(in: pasted), pasted.replacingOccurrences(of: "@", with: "[at]"))
         XCTAssertEqual(GeminiPromptDelivery.escapeSpecialCharacters(in: "a@b @name @. @"), "a[at]b [at]name [at]. [at]")
-        XCTAssertEqual(GeminiPromptDelivery.combinedInput(systemPrompt: "@system", userMessage: "@user"), "@system\n\n[at]user")
+    }
+    func testCombinedInputEscapesBothChannelsAndKeepsDeclaredAttachments() {
+        XCTAssertEqual(GeminiPromptDelivery.combinedInput(systemPrompt: "@system @/etc/hosts", userMessage: "@user @/tmp/a.png"),
+                       "[at]system [at]/etc/hosts\n\n[at]user [at]/tmp/a.png")
+        XCTAssertEqual(GeminiPromptDelivery.combinedInput(systemPrompt: "s", userMessage: "look @/tmp/a.png", attachmentPaths: ["/tmp/a.png"]),
+                       "s\n\nlook @/tmp/a.png")
     }
 }
