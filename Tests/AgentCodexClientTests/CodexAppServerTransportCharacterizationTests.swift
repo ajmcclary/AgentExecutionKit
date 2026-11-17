@@ -271,6 +271,13 @@ final class CodexAppServerTransportCharacterizationTests: XCTestCase {
 		let failStderrPreflight = ToggleState(enabled: true)
 		let client = CodexAppServerClient(readPreflight: { fd, label in
 			if failStderrPreflight.isEnabled, label.contains("stderr") {
+				// Let the fixture record its PID before injecting the failure.
+				// A child that receives SIGTERM may exit before its script starts.
+				let deadline = ProcessInfo.processInfo.systemUptime + 5
+				while !FileManager.default.fileExists(atPath: pidFile.path),
+					ProcessInfo.processInfo.systemUptime < deadline {
+					Thread.sleep(forTimeInterval: 0.001)
+				}
 				throw POSIXError(.EBADF)
 			}
 			try CodexTestHost.validateFD(fd, label: label)
